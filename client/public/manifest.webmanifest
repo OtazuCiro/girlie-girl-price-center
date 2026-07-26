@@ -1,0 +1,25 @@
+{
+  "name": "Girlie Girl Price Central",
+  "short_name": "Girlie Girl",
+  "description": "Que complementes tu preciosura con los mejores precios.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fff9f7",
+  "theme_color": "#fff9f7",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
+
