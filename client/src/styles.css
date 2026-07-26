@@ -97,7 +97,7 @@ button { cursor: pointer; }
 
 .product-grid { display: grid; grid-template-columns: 1fr; gap: 0.9rem; }
 .product-card { display: grid; grid-template-columns: 7.8rem minmax(0, 1fr); overflow: hidden; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
-.product-card__image { position: relative; display: grid; min-height: 10.5rem; place-items: center; padding: 0.8rem; background: #fdf8f7; }
+.product-card__image { position: relative; display: grid; min-height: 10.5rem; place-items: center; padding: 0.8rem; background: var(--color-surface); }
 .product-card__image img { width: 100%; height: 100%; max-height: 8rem; object-fit: contain; }
 .product-card__body { min-width: 0; padding: 1rem; }
 .product-card__brand { margin: 0 0 0.35rem; color: var(--color-primary-pressed); font-size: 0.68rem; font-weight: 750; letter-spacing: 0.1em; text-transform: uppercase; }
