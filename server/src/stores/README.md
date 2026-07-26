@@ -1,8 +1,11 @@
 # Adaptadores de tiendas
 
-En próximos sprints, cada tienda tendrá su propio módulo en este directorio.
-Un adaptador será responsable de obtener datos de una única tienda y devolver
-productos con la forma `NormalizedProduct` definida en `../models/normalizedProduct.js`.
+Cada tienda tiene su propio directorio y devuelve productos con la forma
+`NormalizedProduct` definida en `../models/normalizedProduct.js`.
 
-Este Sprint 0 no incluye adaptadores, scraping ni integraciones reales.
+La primera integración es `juleriaque/search.js`. Consulta bajo demanda el
+endpoint JSON público de catálogo de Juleriaque, normaliza los resultados y no
+expone la respuesta cruda al frontend.
 
+No agregar lógica de coordinación, caché o rutas HTTP dentro de un adaptador.
+Esas responsabilidades viven en `services/` y `routes/`.

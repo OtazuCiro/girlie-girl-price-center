@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import ProductCard from "./components/ProductCard.jsx";
-import { getBestPriceId, searchProducts, sortByLowestPrice } from "./data/mockProducts.js";
+import { sortByLowestPrice } from "./utils/products.js";
 
 const CATEGORIES = ["Maquillaje", "Pelo", "Skincare"];
 
@@ -51,7 +51,13 @@ function App() {
     setViewState("loading");
 
     try {
-      const results = await searchProducts(cleanQuery);
+      const response = await fetch(`/api/search?q=${encodeURIComponent(cleanQuery)}`);
+      if (!response.ok) throw new Error(`Search failed with HTTP ${response.status}`);
+
+      const data = await response.json();
+      if (!Array.isArray(data.results)) throw new Error("Invalid search response");
+
+      const results = data.results;
       if (currentRun !== searchRun.current) return;
       setProducts(sortByLowestPrice(results));
       setViewState(results.length ? "results" : "empty");
@@ -65,7 +71,6 @@ function App() {
     runSearch(query);
   }
 
-  const bestPriceId = getBestPriceId(products);
   const statusLabel =
     backendStatus === "connected"
       ? "Servicio conectado"
@@ -157,11 +162,7 @@ function App() {
               </div>
               <div className="product-grid">
                 {products.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    isBestPrice={product.id === bestPriceId}
-                  />
+                  <ProductCard key={product.id} product={product} />
                 ))}
               </div>
             </>
@@ -193,4 +194,3 @@ function App() {
 }
 
 export default App;
-

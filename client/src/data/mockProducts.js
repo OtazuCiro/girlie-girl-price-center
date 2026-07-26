@@ -115,22 +115,3 @@ export function filterProducts(query) {
     return searchable.includes(term);
   });
 }
-
-export function sortByLowestPrice(products) {
-  return [...products].sort((a, b) => a.currentPrice - b.currentPrice);
-}
-
-export function getBestPriceId(products) {
-  const available = products.filter((product) => product.inStock);
-  if (!available.length) return null;
-  return available.reduce((best, product) =>
-    product.currentPrice < best.currentPrice ? product : best,
-  ).id;
-}
-
-export function searchProducts(query) {
-  return new Promise((resolve) => {
-    window.setTimeout(() => resolve(filterProducts(query)), 450);
-  });
-}
-

@@ -3,6 +3,24 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import App from "./App.jsx";
+import { filterProducts } from "./data/mockProducts.js";
+
+function mockSearchApi() {
+  global.fetch.mockImplementation(async (url) => {
+    if (url === "/api/health") {
+      return {
+        ok: true,
+        json: async () => ({ status: "ok" }),
+      };
+    }
+
+    const query = decodeURIComponent(url.split("q=")[1] ?? "");
+    return {
+      ok: true,
+      json: async () => ({ query, results: filterProducts(query) }),
+    };
+  });
+}
 
 async function searchFor(term) {
   const user = userEvent.setup();
@@ -24,6 +42,7 @@ describe("Girlie Girl Price Central", () => {
   });
 
   it("searches mock products and renders results", async () => {
+    mockSearchApi();
     render(<App />);
     await searchFor("skincare");
 
@@ -32,30 +51,49 @@ describe("Girlie Girl Price Central", () => {
     expect(screen.getByText("Agua Micelar Todo en 1 Piel Sensible")).toBeInTheDocument();
   });
 
-  it("marks the lowest in-stock product as best price", async () => {
+  it("opens the real product URL in a safe new tab", async () => {
+    mockSearchApi();
     render(<App />);
-    await searchFor("productos");
+    await searchFor("skincare");
 
-    const garnierCard = (await screen.findByText("Agua Micelar Todo en 1 Piel Sensible"))
+    const productCard = (await screen.findByText("Agua Micelar Todo en 1 Piel Sensible"))
       .closest("article");
-    expect(within(garnierCard).getByText("Mejor precio")).toBeInTheDocument();
+    const offer = within(productCard).getByRole("link", { name: "Ver oferta" });
+    expect(offer).toHaveAttribute("target", "_blank");
+    expect(offer).toHaveAttribute("rel", "noopener noreferrer");
+    expect(screen.queryByText("Mejor precio")).not.toBeInTheDocument();
   });
 
-  it("does not let an out-of-stock product win best price", async () => {
+  it("shows stock status from the API response", async () => {
+    mockSearchApi();
     render(<App />);
     await searchFor("maquillaje");
 
     const soldOutCard = (await screen.findByText("Rubor en polvo Mineralize Blush"))
       .closest("article");
-    expect(within(soldOutCard).queryByText("Mejor precio")).not.toBeInTheDocument();
     expect(within(soldOutCard).getByText("Sin stock")).toBeInTheDocument();
   });
 
   it("shows an empty state when no mock matches", async () => {
+    mockSearchApi();
     render(<App />);
     await searchFor("producto inexistente");
 
     expect(await screen.findByText("No encontramos nada por acá")).toBeInTheDocument();
   });
-});
 
+  it("shows the error state when the real search fails", async () => {
+    global.fetch.mockImplementation(async (url) => {
+      if (url === "/api/health") {
+        return { ok: true, json: async () => ({ status: "ok" }) };
+      }
+      return { ok: false, status: 502 };
+    });
+    render(<App />);
+    await searchFor("maybelline");
+
+    expect(
+      await screen.findByText("Algo no salió como esperábamos"),
+    ).toBeInTheDocument();
+  });
+});

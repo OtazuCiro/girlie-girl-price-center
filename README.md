@@ -7,9 +7,10 @@
 Aplicación web mobile-first para comparar precios de productos de belleza en
 tiendas argentinas.
 
-La versión actual incluye una experiencia visual con búsquedas y productos mock,
-una API Express mínima y preparación PWA. No incluye scraping, tiendas reales,
-base de datos, autenticación ni persistencia.
+La versión actual incluye una experiencia visual, búsqueda bajo demanda sobre
+el catálogo público de Juleriaque, una API Express serverless y preparación PWA.
+No incluye comparación entre tiendas, base de datos, autenticación ni
+persistencia.
 
 ## Requisitos
 
@@ -25,12 +26,12 @@ girlie-girl-price-central/
 │   ├── public/             # Manifest, iconos y assets
 │   └── src/
 │       ├── components/
-│       └── data/           # Catálogo y búsqueda mock
+│       └── data/           # Datos mock reservados para tests
 ├── server/                 # Node.js + Express
 │   ├── src/
 │   │   ├── models/
 │   │   ├── routes/
-│   │   └── stores/         # Futuros adaptadores por tienda
+│   │   └── stores/         # Adaptadores aislados por tienda
 │   └── test/
 ├── package.json            # Scripts raíz y npm workspaces
 └── vercel.json
@@ -70,9 +71,11 @@ URLs locales:
 - Aplicación: `http://localhost:5173`
 - API: `http://localhost:3001`
 - Health: `http://localhost:3001/api/health`
+- Búsqueda: `http://localhost:3001/api/search?q=maybelline`
 
 Vite redirige `/api` a Express durante desarrollo. El cliente utiliza siempre
-`/api/health` como ruta relativa; no depende de `localhost` en producción.
+rutas relativas (`/api/health` y `/api/search`); no depende de `localhost` en
+producción.
 
 También se pueden ejecutar los scripts desde cada directorio:
 
@@ -155,6 +158,7 @@ No subir archivos `.env`, credenciales ni tokens.
 8. Abrir la URL pública HTTPS y comprobar:
    - `/`
    - `/api/health`
+   - `/api/search?q=maybelline`
    - `/manifest.webmanifest`
    - `/apple-touch-icon.png`
    - `/icon-192.png`
@@ -181,12 +185,24 @@ sincronización en segundo plano ni notificaciones. Safari puede conservar en
 caché iconos o metadata y requerir cerrar/reabrir la aplicación para reflejar
 cambios.
 
-## Datos mock y evolución futura
+## Integración con Juleriaque
 
-El catálogo vive en `client/src/data/mockProducts.js`. Cada producto respeta el
-contrato normalizado del backend y agrega metadatos locales de búsqueda.
+`GET /api/search?q=<texto>` consulta bajo demanda el endpoint JSON público del
+catálogo de Juleriaque. No requiere login ni navegador headless.
 
-En próximos sprints cada tienda podrá agregar un adaptador dentro de
-`server/src/stores/`. La futura ruta `/api/search?q=producto` podrá coordinarlos,
-pero no está implementada todavía.
+El adaptador:
 
+- limita cada búsqueda a 20 productos;
+- cancela la consulta externa después de 8 segundos;
+- envía un User-Agent identificable;
+- convierte precios, promociones, stock, imágenes y URLs al contrato
+  `NormalizedProduct`;
+- utiliza una caché en memoria de 10 minutos por instancia;
+- devuelve errores controlados sin exponer respuestas crudas ni stack traces.
+
+La caché es oportunista: puede perderse cuando Vercel recicla una función. No se
+realiza fallback silencioso a mocks. Los mocks de `client/src/data/` se conservan
+exclusivamente para tests.
+
+La insignia “Mejor precio” está desactivada mientras exista una sola tienda,
+porque todavía no hay comparación de productos equivalentes entre comercios.

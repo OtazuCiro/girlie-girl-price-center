@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 
 import app from "../src/app.js";
-import vercelHandler from "../../api/health.js";
+import vercelHealthHandler from "../../api/health.js";
+import vercelSearchHandler from "../../api/search.js";
 
 let server;
 let baseUrl;
@@ -30,6 +31,7 @@ test("GET /api/health responds with an ok status", async () => {
   assert.deepEqual(await response.json(), { status: "ok" });
 });
 
-test("the Vercel entry point exports the same Express app", () => {
-  assert.equal(vercelHandler, app);
+test("the Vercel entry points export the same Express app", () => {
+  assert.equal(vercelHealthHandler, app);
+  assert.equal(vercelSearchHandler, app);
 });

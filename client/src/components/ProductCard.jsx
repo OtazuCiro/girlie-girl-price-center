@@ -6,12 +6,17 @@ function formatPrice(value) {
   }).format(value);
 }
 
-function ProductCard({ product, isBestPrice }) {
+function ProductCard({ product }) {
   return (
     <article className={`product-card ${!product.inStock ? "product-card--sold-out" : ""}`}>
       <div className="product-card__image">
-        {isBestPrice && <span className="best-price">Mejor precio</span>}
-        <img src={product.imageUrl} alt="" width="240" height="240" loading="lazy" />
+        <img
+          src={product.imageUrl || "/icon-192.png"}
+          alt=""
+          width="240"
+          height="240"
+          loading="lazy"
+        />
       </div>
       <div className="product-card__body">
         <p className="product-card__brand">{product.brand}</p>
@@ -34,8 +39,8 @@ function ProductCard({ product, isBestPrice }) {
           </span>
           <a
             href={product.productUrl}
-            aria-disabled={!product.inStock}
-            onClick={(event) => event.preventDefault()}
+            target="_blank"
+            rel="noopener noreferrer"
           >
             Ver oferta
           </a>
@@ -46,4 +51,3 @@ function ProductCard({ product, isBestPrice }) {
 }
 
 export default ProductCard;
-
