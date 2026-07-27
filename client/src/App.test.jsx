@@ -4,6 +4,10 @@ import { describe, expect, it } from "vitest";
 
 import App from "./App.jsx";
 import { filterProducts } from "./data/mockProducts.js";
+import {
+  favoriteFromGroup,
+  favoritesStorage,
+} from "./favorites/favoritesStorage.js";
 
 function mockSearchApi() {
   global.fetch.mockImplementation(async (url) => {
@@ -18,6 +22,7 @@ function mockSearchApi() {
     const products = filterProducts(query);
     const groups = products.map((product) => ({
       id: `group-${product.id}`,
+      productKey: `product-${product.id}`,
       brand: product.brand,
       name: product.name,
       imageUrl: product.imageUrl,
@@ -153,5 +158,146 @@ describe("Girlie Girl Price Central", () => {
     expect(
       await screen.findByText("Algo no salió como esperábamos"),
     ).toBeInTheDocument();
+  });
+
+  it("adds and removes a favorite immediately", async () => {
+    mockSearchApi();
+    render(<App />);
+    await searchFor("skincare");
+
+    const card = (await screen.findByText("Sérum Revitalift Ácido Hialurónico"))
+      .closest("article");
+    await userEvent.click(
+      within(card).getByRole("button", { name: "Agregar a favoritos" }),
+    );
+    expect(
+      within(card).getByRole("button", { name: "Quitar de favoritos" }),
+    ).toBeInTheDocument();
+    expect(favoritesStorage.getAll()).toHaveLength(1);
+
+    await userEvent.click(
+      within(card).getByRole("button", { name: "Quitar de favoritos" }),
+    );
+    expect(favoritesStorage.getAll()).toHaveLength(0);
+  });
+
+  it("restores a favorite after remounting", async () => {
+    mockSearchApi();
+    const firstRender = render(<App />);
+    await searchFor("skincare");
+    const card = (await screen.findByText("Sérum Revitalift Ácido Hialurónico"))
+      .closest("article");
+    await userEvent.click(
+      within(card).getByRole("button", { name: "Agregar a favoritos" }),
+    );
+    firstRender.unmount();
+
+    render(<App />);
+    await userEvent.click(screen.getByRole("button", { name: /Favoritos/ }));
+    expect(
+      await screen.findByText("Sérum Revitalift Ácido Hialurónico"),
+    ).toBeInTheDocument();
+  });
+
+  it("shows the favorites empty state and returns to search", async () => {
+    render(<App />);
+    await userEvent.click(screen.getByRole("button", { name: "Favoritos" }));
+
+    expect(
+      screen.getByText("Todavía no guardaste ningún producto."),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Buscar productos" }));
+    expect(screen.getByRole("searchbox")).toBeInTheDocument();
+  });
+
+  it("stores a multi-store group as one favorite", async () => {
+    const offer = (id, store) => ({
+      id,
+      store,
+      currentPrice: 20000,
+      previousPrice: null,
+      discountPercentage: null,
+      productUrl: `https://example.com/${id}`,
+      inStock: true,
+    });
+    const group = {
+      id: "sky-high-group",
+      productKey: "product-sky-high",
+      brand: "Maybelline",
+      name: "Máscara Sky High",
+      imageUrl: "",
+      offers: [offer("farmacity", "Farmacity"), offer("pigmento", "Pigmento")],
+      bestPriceOfferId: "farmacity",
+      lowestPrice: 20000,
+      savings: null,
+      inStock: true,
+    };
+    global.fetch.mockImplementation(async (url) =>
+      url === "/api/health"
+        ? { ok: true, json: async () => ({ status: "ok" }) }
+        : { ok: true, json: async () => ({ results: group.offers, groups: [group], sources: [] }) },
+    );
+    render(<App />);
+    await searchFor("sky high");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Agregar a favoritos" }),
+    );
+
+    expect(favoritesStorage.getAll()).toHaveLength(1);
+    expect(favoritesStorage.getAll()[0].offerIds).toEqual([
+      "farmacity",
+      "pigmento",
+    ]);
+  });
+
+  it("keeps unavailable favorites and updates the others independently", async () => {
+    const currentGroup = {
+      id: "available",
+      productKey: "product-a",
+      brand: "Marca",
+      name: "Producto A",
+      imageUrl: "",
+      offers: [{
+        id: "offer-a",
+        store: "Farmacity",
+        currentPrice: 12345,
+        previousPrice: null,
+        discountPercentage: null,
+        productUrl: "https://example.com/a",
+        inStock: true,
+      }],
+      bestPriceOfferId: "offer-a",
+      lowestPrice: 12345,
+      savings: null,
+      inStock: true,
+    };
+    favoritesStorage.add(favoriteFromGroup(currentGroup));
+    favoritesStorage.add({
+      productKey: "product-b",
+      brand: "Marca",
+      name: "Producto B",
+      imageUrl: "",
+      searchQuery: "Producto B",
+      offerIds: ["offer-b"],
+    });
+    global.fetch.mockImplementation(async (url) => {
+      if (url === "/api/health") {
+        return { ok: true, json: async () => ({ status: "ok" }) };
+      }
+      if (url.includes("Producto%20B")) throw new Error("offline");
+      return {
+        ok: true,
+        json: async () => ({ groups: [currentGroup] }),
+      };
+    });
+
+    render(<App />);
+    await userEvent.click(screen.getByRole("button", { name: /Favoritos/ }));
+
+    expect(await screen.findByText("$ 12.345")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Sin ofertas disponibles en este momento"),
+    ).toBeInTheDocument();
+    expect(favoritesStorage.getAll()).toHaveLength(2);
   });
 });

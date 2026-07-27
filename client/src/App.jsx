@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 
 import ComparisonCard from "./components/ComparisonCard.jsx";
+import {
+  favoriteFromGroup,
+  favoritesStorage,
+} from "./favorites/favoritesStorage.js";
+import { refreshFavorites } from "./favorites/refreshFavorites.js";
 
 const CATEGORIES = ["Maquillaje", "Pelo", "Skincare"];
 
@@ -20,6 +25,9 @@ function App() {
   const [groups, setGroups] = useState([]);
   const [sources, setSources] = useState([]);
   const [viewState, setViewState] = useState("initial");
+  const [activeView, setActiveView] = useState("search");
+  const [favorites, setFavorites] = useState(() => favoritesStorage.getAll());
+  const [favoriteUpdates, setFavoriteUpdates] = useState({});
   const searchRun = useRef(0);
 
   useEffect(() => {
@@ -41,6 +49,35 @@ function App() {
     return () => controller.abort();
   }, []);
 
+  useEffect(() => {
+    if (activeView !== "favorites" || !favorites.length) return undefined;
+
+    const controller = new AbortController();
+    const favoritesToRefresh = favorites;
+    setFavoriteUpdates({});
+
+    refreshFavorites(favoritesToRefresh, { signal: controller.signal })
+      .then((updates) => {
+        if (controller.signal.aborted) return;
+        setFavoriteUpdates(
+          Object.fromEntries(
+            updates.map(({ productKey, group }) => [productKey, group]),
+          ),
+        );
+      })
+      .catch((error) => {
+        if (error?.name !== "AbortError") {
+          setFavoriteUpdates(
+            Object.fromEntries(
+              favoritesToRefresh.map((favorite) => [favorite.productKey, null]),
+            ),
+          );
+        }
+      });
+
+    return () => controller.abort();
+  }, [activeView]);
+
   async function runSearch(searchTerm) {
     const cleanQuery = searchTerm.trim();
     if (!cleanQuery) return;
@@ -48,6 +85,7 @@ function App() {
     const currentRun = ++searchRun.current;
     setQuery(cleanQuery);
     setSearchedQuery(cleanQuery);
+    setActiveView("search");
     setViewState("loading");
 
     try {
@@ -73,6 +111,22 @@ function App() {
     runSearch(query);
   }
 
+  function toggleFavorite(group, storedProductKey = group.productKey) {
+    const isStored = favorites.some(
+      (favorite) => favorite.productKey === storedProductKey,
+    );
+
+    setFavorites(
+      isStored
+        ? favoritesStorage.remove(storedProductKey)
+        : favoritesStorage.add(favoriteFromGroup(group)),
+    );
+  }
+
+  function showSearch() {
+    setActiveView("search");
+  }
+
   const statusLabel =
     backendStatus === "connected"
       ? "Servicio conectado"
@@ -83,22 +137,43 @@ function App() {
   return (
     <div className="app-shell">
       <header className="site-header">
-        <a className="brand" href="/" aria-label="Girlie Girl Price Central, inicio">
+        <a
+          className="brand"
+          href="/"
+          aria-label="Girlie Girl Price Central, inicio"
+          onClick={(event) => {
+            event.preventDefault();
+            showSearch();
+          }}
+        >
           <img src="/favicon-32x32.png" alt="" width="32" height="32" />
           <span>
             <strong>Girlie Girl</strong>
             <small>Price Central</small>
           </span>
         </a>
-        <span
-          className={`connection connection--${backendStatus}`}
-          title={statusLabel}
-          aria-label={statusLabel}
-        />
+        <div className="header-actions">
+          <button
+            className={`favorites-link ${activeView === "favorites" ? "favorites-link--active" : ""}`}
+            type="button"
+            onClick={() => setActiveView("favorites")}
+          >
+            <span aria-hidden="true">♡</span>
+            Favoritos
+            {favorites.length > 0 && <small>{favorites.length}</small>}
+          </button>
+          <span
+            className={`connection connection--${backendStatus}`}
+            title={statusLabel}
+            aria-label={statusLabel}
+          />
+        </div>
       </header>
 
       <main>
-        <section className="hero" aria-labelledby="hero-title">
+        {activeView === "search" && (
+          <>
+          <section className="hero" aria-labelledby="hero-title">
           <p className="eyebrow">Belleza a tu precio</p>
           <h1 id="hero-title">
             Encontrá eso que te encanta, <em>al mejor precio.</em>
@@ -130,9 +205,9 @@ function App() {
               </button>
             ))}
           </nav>
-        </section>
+          </section>
 
-        <section className="results" aria-live="polite" aria-busy={viewState === "loading"}>
+          <section className="results" aria-live="polite" aria-busy={viewState === "loading"}>
           {viewState === "initial" && (
             <div className="welcome-state">
               <span aria-hidden="true">⌁</span>
@@ -169,7 +244,14 @@ function App() {
               )}
               <div className="product-grid">
                 {groups.map((group) => (
-                  <ComparisonCard key={group.id} group={group} />
+                  <ComparisonCard
+                    key={group.id}
+                    group={group}
+                    isFavorite={favorites.some(
+                      (favorite) => favorite.productKey === group.productKey,
+                    )}
+                    onToggleFavorite={() => toggleFavorite(group)}
+                  />
                 ))}
               </div>
             </>
@@ -189,7 +271,64 @@ function App() {
               <p>Intentá nuevamente en unos minutos.</p>
             </div>
           )}
-        </section>
+          </section>
+          </>
+        )}
+
+        {activeView === "favorites" && (
+          <section className="favorites-view" aria-labelledby="favorites-title">
+            <div className="favorites-heading">
+              <p className="eyebrow">Guardados</p>
+              <h1 id="favorites-title">Mis favoritos</h1>
+            </div>
+
+            {!favorites.length ? (
+              <div className="message-state">
+                <h2>Todavía no guardaste ningún producto.</h2>
+                <button className="secondary-action" type="button" onClick={showSearch}>
+                  Buscar productos
+                </button>
+              </div>
+            ) : (
+              <div className="product-grid">
+                {favorites.map((favorite) => {
+                  const hasUpdate = Object.hasOwn(favoriteUpdates, favorite.productKey);
+                  const updatedGroup = favoriteUpdates[favorite.productKey];
+                  const fallbackGroup = {
+                    id: favorite.productKey,
+                    productKey: favorite.productKey,
+                    brand: favorite.brand,
+                    name: favorite.name,
+                    imageUrl: favorite.imageUrl,
+                    offers: [],
+                    bestPriceOfferId: null,
+                    lowestPrice: null,
+                    savings: null,
+                    inStock: true,
+                  };
+
+                  return (
+                    <ComparisonCard
+                      key={favorite.productKey}
+                      group={updatedGroup ?? fallbackGroup}
+                      isFavorite
+                      onToggleFavorite={() =>
+                        toggleFavorite(updatedGroup ?? fallbackGroup, favorite.productKey)
+                      }
+                      availabilityMessage={
+                        updatedGroup
+                          ? undefined
+                          : hasUpdate
+                            ? "Sin ofertas disponibles en este momento"
+                            : "Actualizando ofertas…"
+                      }
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
       </main>
 
       <footer>

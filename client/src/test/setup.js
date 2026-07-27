@@ -3,6 +3,7 @@ import { cleanup } from "@testing-library/react";
 import { afterEach, beforeEach, vi } from "vitest";
 
 beforeEach(() => {
+  localStorage.clear();
   global.fetch = vi.fn().mockResolvedValue({
     ok: true,
     json: async () => ({ status: "ok" }),
