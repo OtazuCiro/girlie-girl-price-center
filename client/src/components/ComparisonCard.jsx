@@ -6,7 +6,12 @@ function formatPrice(value) {
   }).format(value);
 }
 
-function ComparisonCard({ group }) {
+function ComparisonCard({
+  group,
+  isFavorite = false,
+  onToggleFavorite,
+  availabilityMessage,
+}) {
   return (
     <article className={`comparison-card ${!group.inStock ? "comparison-card--sold-out" : ""}`}>
       <div className="comparison-card__image">
@@ -17,17 +22,32 @@ function ComparisonCard({ group }) {
           height="240"
           loading="lazy"
         />
+        {onToggleFavorite && (
+          <button
+            className={`favorite-toggle ${isFavorite ? "favorite-toggle--active" : ""}`}
+            type="button"
+            aria-label={isFavorite ? "Quitar de favoritos" : "Agregar a favoritos"}
+            aria-pressed={isFavorite}
+            onClick={onToggleFavorite}
+          >
+            <span aria-hidden="true">{isFavorite ? "♥" : "♡"}</span>
+          </button>
+        )}
       </div>
 
       <div className="comparison-card__body">
         <p className="comparison-card__brand">{group.brand}</p>
         <h3>{group.name}</h3>
-        <p className="comparison-card__summary">
-          {group.lowestPrice
-            ? `Desde ${formatPrice(group.lowestPrice)}`
-            : "Sin stock disponible"}
-          {group.offers.length > 1 && ` · ${group.offers.length} tiendas`}
-        </p>
+        {availabilityMessage ? (
+          <p className="favorite-availability">{availabilityMessage}</p>
+        ) : (
+          <p className="comparison-card__summary">
+            {group.lowestPrice
+              ? `Desde ${formatPrice(group.lowestPrice)}`
+              : "Sin stock disponible"}
+            {group.offers.length > 1 && ` · ${group.offers.length} tiendas`}
+          </p>
+        )}
 
         {group.savings && (
           <p className="comparison-card__savings">

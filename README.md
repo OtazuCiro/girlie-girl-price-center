@@ -216,3 +216,21 @@ disponible.
 La caché es oportunista: puede perderse cuando Vercel recicla una función. No se
 realiza fallback silencioso a mocks. Los mocks de `client/src/data/` se conservan
 exclusivamente para tests.
+
+## Favoritos
+
+Los favoritos representan productos agrupados, no ofertas de una tienda. Se
+guardan en `localStorage` mediante una capa dedicada y la clave versionada
+`girlieGirl:favorites:v1`. Esta opción mantiene v1.1 pequeña y privada para una
+única usuaria, sin requerir cuentas ni base de datos.
+
+Al abrir **Mis favoritos**, la aplicación vuelve a consultar la API en lotes
+limitados y muestra precios y stock actuales. Los precios no se persisten. Si un
+producto no puede actualizarse, permanece guardado y se indica que no hay
+ofertas disponibles en ese momento.
+
+En iOS, los favoritos pertenecen al almacenamiento local del sitio/PWA en ese
+dispositivo. No se sincronizan con otros dispositivos o navegadores y pueden
+perderse si Safari elimina los datos del sitio o la usuaria los borra. Una
+implementación server-side futura puede reemplazar la capa de almacenamiento sin
+cambiar los componentes de la interfaz.

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  createProductKey,
   groupEquivalentProducts,
   normalizeProductText,
 } from "../src/services/productGrouping.js";
@@ -50,6 +51,29 @@ test("groups conservative equivalents and calculates best price and savings", ()
   assert.equal(groups[0].offers.length, 3);
   assert.equal(groups[0].bestPriceOfferId, "farmacity");
   assert.equal(groups[0].savings, 1500);
+});
+
+test("creates a stable identity independent from price, stock and result order", () => {
+  const original = product();
+  const changedOffer = product({
+    currentPrice: 999,
+    inStock: false,
+    store: "Farmacity",
+    productUrl: "https://another.example/offer",
+  });
+
+  assert.equal(createProductKey(original), createProductKey(changedOffer));
+
+  const first = groupEquivalentProducts([
+    original,
+    product({ id: "second", store: "Pigmento", currentPrice: 18000 }),
+  ]);
+  const reordered = groupEquivalentProducts([
+    product({ id: "second", store: "Pigmento", currentPrice: 25000 }),
+    { ...original, currentPrice: 15000 },
+  ]);
+
+  assert.equal(first[0].productKey, reordered[0].productKey);
 });
 
 test("does not mix brands, sizes or strong variants", () => {

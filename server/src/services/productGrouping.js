@@ -83,6 +83,22 @@ function sameSet(left, right) {
   return left.length === right.length && left.every((value) => right.includes(value));
 }
 
+function hashIdentity(value) {
+  let hash = 2166136261;
+
+  for (const character of value) {
+    hash ^= character.codePointAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return (hash >>> 0).toString(36);
+}
+
+export function createProductKey(product) {
+  const identity = normalizeProductText(`${product.brand} ${product.name}`);
+  return `product-${hashIdentity(identity)}`;
+}
+
 function equivalent(leftProduct, rightProduct) {
   if (leftProduct.store === rightProduct.store) return false;
 
@@ -110,12 +126,17 @@ function buildGroup(offers, index) {
   const available = offers
     .filter((offer) => offer.inStock)
     .sort((a, b) => a.currentPrice - b.currentPrice);
-  const representative = available[0] ?? offers[0];
+  const representative = [...offers].sort((left, right) => {
+    const leftIdentity = normalizeProductText(`${left.brand} ${left.name}`);
+    const rightIdentity = normalizeProductText(`${right.brand} ${right.name}`);
+    return leftIdentity.localeCompare(rightIdentity, "es") || left.id.localeCompare(right.id);
+  })[0];
   const best = available[0] ?? null;
   const nextBest = available[1] ?? null;
 
   return {
     id: `comparison-${index}-${representative.id}`,
+    productKey: createProductKey(representative),
     brand: representative.brand,
     name: representative.name,
     imageUrl: representative.imageUrl,
