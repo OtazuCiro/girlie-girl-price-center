@@ -86,6 +86,26 @@ test("detects a strong variant declared only in the product URL", () => {
   assert.equal(groups.length, 2);
 });
 
+test("does not group a product whose URL declares a conflicting brand", () => {
+  const groups = groupEquivalentProducts([
+    product({
+      id: "loreal",
+      brand: "L'Oréal Paris",
+      name: "Sombra en Barra Le Shadow Stick",
+      productUrl: "https://example.com/loreal-le-shadow-stick/p",
+    }),
+    product({
+      id: "conflicting-catalog-brand",
+      brand: "L'Oréal Paris",
+      name: "Sombra de Ojos en Barra Le Shadow Stick",
+      store: "Pigmento",
+      productUrl: "https://example.com/maybelline-le-shadow-stick/p",
+    }),
+  ]);
+
+  assert.equal(groups.length, 2);
+});
+
 test("ignores out-of-stock offers for best price and keeps unmatched products", () => {
   const groups = groupEquivalentProducts([
     product({ id: "sold-out", currentPrice: 10000, inStock: false }),

@@ -23,6 +23,14 @@ const VARIANT_TERMS = new Map([
   ["mini", /\b(mini|travel size)\b/],
 ]);
 
+const KNOWN_URL_BRANDS = [
+  "anastasia",
+  "garnier",
+  "kerastase",
+  "loreal",
+  "maybelline",
+];
+
 export function normalizeProductText(value = "") {
   return value
     .normalize("NFD")
@@ -49,7 +57,13 @@ function extractSizes(text) {
 function describe(product) {
   const brand = normalizeProductText(product.brand);
   const name = normalizeProductText(product.name);
-  const comparisonText = `${name} ${normalizeProductText(product.productUrl)}`;
+  const normalizedUrl = normalizeProductText(product.productUrl);
+  const comparisonText = `${name} ${normalizedUrl}`;
+  const compactBrand = brand.replaceAll(" ", "");
+  const urlBrandConflict = KNOWN_URL_BRANDS.some(
+    (knownBrand) =>
+      normalizedUrl.includes(knownBrand) && !compactBrand.includes(knownBrand),
+  );
   const sizes = extractSizes(name);
   const variants = [...VARIANT_TERMS]
     .filter(([, pattern]) => pattern.test(comparisonText))
@@ -62,7 +76,7 @@ function describe(product) {
       .filter((token) => token.length > 1 && !ignored.has(token)),
   );
 
-  return { brand, name, sizes, variants, tokens };
+  return { brand, name, sizes, variants, tokens, urlBrandConflict };
 }
 
 function sameSet(left, right) {
@@ -75,6 +89,7 @@ function equivalent(leftProduct, rightProduct) {
   const left = describe(leftProduct);
   const right = describe(rightProduct);
   if (!left.brand || left.brand !== right.brand) return false;
+  if (left.urlBrandConflict || right.urlBrandConflict) return false;
   if (!sameSet(left.variants, right.variants)) return false;
   if (left.sizes.length && right.sizes.length && !sameSet(left.sizes, right.sizes)) {
     return false;
