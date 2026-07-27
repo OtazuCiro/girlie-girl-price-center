@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import ProductCard from "./components/ProductCard.jsx";
-import { sortByLowestPrice } from "./utils/products.js";
+import ComparisonCard from "./components/ComparisonCard.jsx";
 
 const CATEGORIES = ["Maquillaje", "Pelo", "Skincare"];
 
@@ -18,7 +17,8 @@ function App() {
   const [backendStatus, setBackendStatus] = useState("checking");
   const [query, setQuery] = useState("");
   const [searchedQuery, setSearchedQuery] = useState("");
-  const [products, setProducts] = useState([]);
+  const [groups, setGroups] = useState([]);
+  const [sources, setSources] = useState([]);
   const [viewState, setViewState] = useState("initial");
   const searchRun = useRef(0);
 
@@ -55,12 +55,14 @@ function App() {
       if (!response.ok) throw new Error(`Search failed with HTTP ${response.status}`);
 
       const data = await response.json();
-      if (!Array.isArray(data.results)) throw new Error("Invalid search response");
+      if (!Array.isArray(data.results) || !Array.isArray(data.groups)) {
+        throw new Error("Invalid search response");
+      }
 
-      const results = data.results;
       if (currentRun !== searchRun.current) return;
-      setProducts(sortByLowestPrice(results));
-      setViewState(results.length ? "results" : "empty");
+      setGroups(data.groups);
+      setSources(Array.isArray(data.sources) ? data.sources : []);
+      setViewState(data.groups.length ? "results" : "empty");
     } catch {
       if (currentRun === searchRun.current) setViewState("error");
     }
@@ -151,7 +153,7 @@ function App() {
                 <div>
                   <p className="eyebrow">Resultados</p>
                   <h2>Para “{searchedQuery}”</h2>
-                  <span>{products.length} productos encontrados</span>
+                  <span>{groups.length} productos encontrados</span>
                 </div>
                 <label>
                   <span>Ordenar</span>
@@ -160,9 +162,14 @@ function App() {
                   </select>
                 </label>
               </div>
+              {sources.some((source) => source.status === "error") && (
+                <p className="partial-results" role="status">
+                  Mostramos resultados parciales: alguna tienda no respondió.
+                </p>
+              )}
               <div className="product-grid">
-                {products.map((product) => (
-                  <ProductCard key={product.id} product={product} />
+                {groups.map((group) => (
+                  <ComparisonCard key={group.id} group={group} />
                 ))}
               </div>
             </>

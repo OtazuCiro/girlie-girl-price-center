@@ -15,9 +15,26 @@ function mockSearchApi() {
     }
 
     const query = decodeURIComponent(url.split("q=")[1] ?? "");
+    const products = filterProducts(query);
+    const groups = products.map((product) => ({
+      id: `group-${product.id}`,
+      brand: product.brand,
+      name: product.name,
+      imageUrl: product.imageUrl,
+      offers: [product],
+      bestPriceOfferId: product.inStock ? product.id : null,
+      lowestPrice: product.inStock ? product.currentPrice : null,
+      savings: null,
+      inStock: product.inStock,
+    }));
     return {
       ok: true,
-      json: async () => ({ query, results: filterProducts(query) }),
+      json: async () => ({
+        query,
+        results: products,
+        groups,
+        sources: [{ store: "Test", status: "ok" }],
+      }),
     };
   });
 }
@@ -72,6 +89,47 @@ describe("Girlie Girl Price Central", () => {
     const soldOutCard = (await screen.findByText("Rubor en polvo Mineralize Blush"))
       .closest("article");
     expect(within(soldOutCard).getByText("Sin stock")).toBeInTheDocument();
+  });
+
+  it("shows the best price only for comparable offers and reports savings", async () => {
+    global.fetch.mockImplementation(async (url) => {
+      if (url === "/api/health") {
+        return { ok: true, json: async () => ({ status: "ok" }) };
+      }
+      const offer = (id, store, currentPrice) => ({
+        id,
+        store,
+        currentPrice,
+        previousPrice: null,
+        discountPercentage: null,
+        productUrl: `https://example.com/${id}`,
+        inStock: true,
+      });
+      return {
+        ok: true,
+        json: async () => ({
+          results: [],
+          sources: [],
+          groups: [{
+            id: "sky-high",
+            brand: "Maybelline",
+            name: "Máscara Sky High",
+            imageUrl: "",
+            offers: [offer("farmacity", "Farmacity", 17000), offer("pigmento", "Pigmento", 18500)],
+            bestPriceOfferId: "farmacity",
+            lowestPrice: 17000,
+            savings: 1500,
+            inStock: true,
+          }],
+        }),
+      };
+    });
+    render(<App />);
+    await searchFor("sky high");
+
+    expect(await screen.findByText("Mejor precio")).toBeInTheDocument();
+    expect(screen.getByText(/Ahorrás/)).toHaveTextContent("$ 1.500");
+    expect(screen.getAllByRole("link", { name: "Ver oferta" })).toHaveLength(2);
   });
 
   it("shows an empty state when no mock matches", async () => {

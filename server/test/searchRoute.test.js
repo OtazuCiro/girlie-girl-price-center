@@ -11,7 +11,12 @@ const searchService = {
     if (query === "error") {
       throw new SearchServiceError("STORE_UNAVAILABLE", "Tienda no disponible.", 502);
     }
-    return query === "vacío" ? [] : [{ id: "real-product" }];
+    const results = query === "vacío" ? [] : [{ id: "real-product" }];
+    return {
+      results,
+      groups: [],
+      sources: [{ store: "Test", status: "ok", cached: false, count: results.length }],
+    };
   },
 };
 
@@ -53,13 +58,20 @@ test("trims q and returns results", async () => {
   assert.deepEqual(await response.json(), {
     query: "maybelline",
     results: [{ id: "real-product" }],
+    groups: [],
+    sources: [{ store: "Test", status: "ok", cached: false, count: 1 }],
   });
   assert.equal(calls.at(-1), "maybelline");
 });
 
 test("returns an empty results array", async () => {
   const response = await fetch(`${baseUrl}/api/search?q=vac%C3%ADo`);
-  assert.deepEqual(await response.json(), { query: "vacío", results: [] });
+  assert.deepEqual(await response.json(), {
+    query: "vacío",
+    results: [],
+    groups: [],
+    sources: [{ store: "Test", status: "ok", cached: false, count: 0 }],
+  });
 });
 
 test("returns a controlled external error without a stack trace", async () => {
@@ -75,4 +87,3 @@ test("returns a controlled external error without a stack trace", async () => {
   });
   assert.equal("stack" in body, false);
 });
-

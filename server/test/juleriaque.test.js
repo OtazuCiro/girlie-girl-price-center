@@ -19,7 +19,7 @@ test("parses and normalizes Juleriaque products", () => {
   const [available, soldOut] = parseJuleriaqueResponse(fixture);
 
   assert.deepEqual(available, {
-    id: "15493-22951",
+    id: "juleriaque-15493-22951",
     name: "Colossal Bubble Waterproof Very Black",
     brand: "MAYBELLINE",
     currentPrice: 35990,
@@ -79,4 +79,3 @@ test("aborts slow store requests", async () => {
       error instanceof JuleriaqueStoreError && error.code === "STORE_TIMEOUT",
   );
 });
-

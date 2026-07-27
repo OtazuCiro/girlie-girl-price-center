@@ -34,8 +34,8 @@ export function createSearchRouter({
     }
 
     try {
-      const results = await searchService.search(query);
-      return response.json({ query, results });
+      const search = await searchService.search(query);
+      return response.json({ query, ...search });
     } catch (error) {
       const controlledError =
         error instanceof SearchServiceError
@@ -48,7 +48,7 @@ export function createSearchRouter({
 
       console.error("[product-search]", {
         code: controlledError.code,
-        store: "Juleriaque",
+        stores: "Juleriaque, Farmacity, Pigmento",
         query,
         cause: error instanceof Error ? error.message : "Unknown error",
       });
@@ -64,4 +64,3 @@ export function createSearchRouter({
 
   return router;
 }
-

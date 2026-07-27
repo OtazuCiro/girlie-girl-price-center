@@ -7,14 +7,14 @@
 Aplicación web mobile-first para comparar precios de productos de belleza en
 tiendas argentinas.
 
-La versión actual incluye una experiencia visual, búsqueda bajo demanda sobre
-el catálogo público de Juleriaque, una API Express serverless y preparación PWA.
-No incluye comparación entre tiendas, base de datos, autenticación ni
-persistencia.
+La versión actual incluye una experiencia visual, búsqueda y comparación bajo
+demanda sobre los catálogos públicos de Juleriaque, Farmacity y Pigmento, una
+API Express serverless y preparación PWA. No incluye base de datos,
+autenticación ni persistencia.
 
 ## Requisitos
 
-- Node.js 20 o superior.
+- Node.js 22.x.
 - npm 10 o superior.
 
 ## Estructura
@@ -185,24 +185,34 @@ sincronización en segundo plano ni notificaciones. Safari puede conservar en
 caché iconos o metadata y requerir cerrar/reabrir la aplicación para reflejar
 cambios.
 
-## Integración con Juleriaque
+## Comparación de tiendas
 
-`GET /api/search?q=<texto>` consulta bajo demanda el endpoint JSON público del
-catálogo de Juleriaque. No requiere login ni navegador headless.
+`GET /api/search?q=<texto>` consulta concurrentemente los endpoints JSON
+públicos de Juleriaque, Farmacity y Pigmento. No requiere login ni navegador
+headless.
 
-El adaptador:
+Cada adaptador:
 
 - limita cada búsqueda a 20 productos;
 - cancela la consulta externa después de 8 segundos;
 - envía un User-Agent identificable;
 - convierte precios, promociones, stock, imágenes y URLs al contrato
   `NormalizedProduct`;
-- utiliza una caché en memoria de 10 minutos por instancia;
+- utiliza una caché en memoria de 10 minutos por consulta y tienda;
 - devuelve errores controlados sin exponer respuestas crudas ni stack traces.
+
+Las tiendas se consultan en paralelo. Si alguna falla, la API devuelve los
+resultados disponibles y describe el estado de cada fuente en `sources`; sólo
+responde con error cuando fallan todas.
+
+El agrupamiento exige la misma marca y una coincidencia alta de términos. Además
+separa tamaños incompatibles y variantes fuertes como `waterproof`, `refill`,
+`pack` o `mini`, incluso cuando esas señales sólo aparecen en la URL. Es
+deliberadamente conservador: ante la duda deja ofertas separadas. “Mejor precio”
+se calcula sólo dentro de un grupo equivalente con al menos dos tiendas,
+ignorando ofertas sin stock; el ahorro se compara contra la siguiente oferta
+disponible.
 
 La caché es oportunista: puede perderse cuando Vercel recicla una función. No se
 realiza fallback silencioso a mocks. Los mocks de `client/src/data/` se conservan
 exclusivamente para tests.
-
-La insignia “Mejor precio” está desactivada mientras exista una sola tienda,
-porque todavía no hay comparación de productos equivalentes entre comercios.
