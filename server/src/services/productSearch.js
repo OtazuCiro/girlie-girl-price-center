@@ -1,7 +1,14 @@
 import { farmacityStore } from "../stores/farmacity/search.js";
+import { farmaonlineStore } from "../stores/farmaonline/search.js";
+import { farmaplusStore } from "../stores/farmaplus/search.js";
 import { juleriaqueStore } from "../stores/juleriaque/search.js";
 import { pigmentoStore } from "../stores/pigmento/search.js";
-import { groupEquivalentProducts, normalizeProductText } from "./productGrouping.js";
+import { simplicityStore } from "../stores/simplicity/search.js";
+import {
+  buildCatalogFamilies,
+  groupEquivalentProducts,
+  normalizeProductText,
+} from "./productGrouping.js";
 
 const DEFAULT_CACHE_TTL_MS = 10 * 60 * 1000;
 
@@ -19,7 +26,14 @@ export function normalizeSearchQuery(query) {
 }
 
 export function createProductSearchService({
-  stores = [juleriaqueStore, farmacityStore, pigmentoStore],
+  stores = [
+    juleriaqueStore,
+    farmacityStore,
+    pigmentoStore,
+    farmaonlineStore,
+    farmaplusStore,
+    simplicityStore,
+  ],
   ttlMs = DEFAULT_CACHE_TTL_MS,
   now = Date.now,
 } = {}) {
@@ -68,9 +82,12 @@ export function createProductSearchService({
         );
       }
 
+      const groups = groupEquivalentProducts(results);
+
       return {
         results,
-        groups: groupEquivalentProducts(results),
+        groups,
+        families: buildCatalogFamilies(groups),
         sources,
       };
     },

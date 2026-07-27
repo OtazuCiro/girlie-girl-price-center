@@ -5,6 +5,35 @@ function matchesFavorite(group, favorite) {
   );
 }
 
+function withFamily(group, families) {
+  const family = families.find((candidate) =>
+    [
+      candidate.primary,
+      ...candidate.variants,
+      ...candidate.packs,
+      ...candidate.sets,
+    ].some((member) => member.productKey === group.productKey),
+  );
+  if (!family) return group;
+
+  return {
+    ...group,
+    productFamilyKey: family.productFamilyKey,
+    relatedProducts: {
+      variants: family.variants.filter(
+        (member) => member.productKey !== group.productKey,
+      ),
+      packs: family.packs.filter(
+        (member) => member.productKey !== group.productKey,
+      ),
+      sets: family.sets.filter(
+        (member) => member.productKey !== group.productKey,
+      ),
+    },
+    bestValueProductKey: family.bestValueProductKey,
+  };
+}
+
 export async function refreshFavorites(
   favorites,
   { fetchImpl = globalThis.fetch, signal, concurrency = 3 } = {},
@@ -28,7 +57,14 @@ export async function refreshFavorites(
         const group = Array.isArray(data.groups)
           ? data.groups.find((candidate) => matchesFavorite(candidate, favorite))
           : null;
-        results[index] = { productKey: favorite.productKey, group: group ?? null };
+        const refreshed =
+          group && Array.isArray(data.families)
+            ? withFamily(group, data.families)
+            : group;
+        results[index] = {
+          productKey: favorite.productKey,
+          group: refreshed ?? null,
+        };
       } catch (error) {
         if (error?.name === "AbortError") throw error;
         results[index] = { productKey: favorite.productKey, group: null };

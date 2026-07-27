@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  buildCatalogFamilies,
+  createProductFamilyKey,
   createProductKey,
   groupEquivalentProducts,
   normalizeProductText,
@@ -147,4 +149,94 @@ test("ignores out-of-stock offers for best price and keeps unmatched products", 
   const mascara = groups.find((group) => group.offers.length === 2);
   assert.equal(mascara.bestPriceOfferId, "available");
   assert.equal(mascara.savings, null);
+});
+
+test("gives exact products and conceptual families stable distinct identities", () => {
+  const single = product({ name: "Óleo Extraordinario 100 ml", brand: "L'Oréal" });
+  const changed = { ...single, currentPrice: 1, inStock: false };
+  const pack = { ...single, name: "Óleo Extraordinario 100 ml pack x2" };
+
+  assert.equal(createProductKey(single), createProductKey(changed));
+  assert.equal(createProductFamilyKey(single), createProductFamilyKey(pack));
+  assert.notEqual(createProductKey(single), createProductKey(pack));
+});
+
+test("classifies and relates single, packs and mixed sets without competition", () => {
+  const groups = groupEquivalentProducts([
+    product({ id: "single", name: "Óleo Extraordinario 100 ml", brand: "L'Oréal", currentPrice: 12000 }),
+    product({ id: "pack-2", name: "Óleo Extraordinario 100 ml pack x2", brand: "L'Oréal", store: "Farmacity", currentPrice: 22000 }),
+    product({ id: "pack-3", name: "Óleo Extraordinario 100 ml pack x3", brand: "L'Oréal", store: "Pigmento", currentPrice: 30000 }),
+    product({ id: "kit", name: "Kit Óleo Extraordinario + Shampoo", brand: "L'Oréal", store: "Farmaonline", currentPrice: 35000 }),
+  ]);
+  const [family] = buildCatalogFamilies(groups);
+
+  assert.equal(groups.length, 4);
+  assert.deepEqual(groups.map(({ productType }) => productType).sort(), ["pack", "pack", "set", "single"]);
+  assert.equal(family.packs.length, 2);
+  assert.equal(family.sets.length, 1);
+  assert.equal(family.primary.lowestPrice, 12000);
+  assert.deepEqual(family.packs.map(({ packCount }) => packCount).sort(), [2, 3]);
+});
+
+test("relates sizes while keeping exact best prices separate", () => {
+  const groups = groupEquivalentProducts([
+    product({ id: "100", name: "Óleo Extraordinario 100 ml", brand: "L'Oréal", currentPrice: 12000 }),
+    product({ id: "50", name: "Óleo Extraordinario 50 ml", brand: "L'Oréal", store: "Farmacity", currentPrice: 8000 }),
+  ]);
+  const [family] = buildCatalogFamilies(groups);
+
+  assert.equal(groups.length, 2);
+  assert.equal(family.variants.length, 1);
+  assert.notEqual(family.primary.productKey, family.variants[0].productKey);
+});
+
+test("calculates unit price and reliable best value", () => {
+  const groups = groupEquivalentProducts([
+    product({ id: "single", name: "Óleo Extraordinario 100 ml", brand: "L'Oréal", currentPrice: 12000 }),
+    product({ id: "pack", name: "Óleo Extraordinario 100 ml pack x2", brand: "L'Oréal", store: "Farmacity", currentPrice: 20000 }),
+  ]);
+  const [family] = buildCatalogFamilies(groups);
+
+  assert.equal(family.packs[0].unitPrice, 10000);
+  assert.equal(family.bestValueProductKey, family.packs[0].productKey);
+});
+
+test("avoids unrelated false positives and never gives mixed sets a unit price", () => {
+  const groups = groupEquivalentProducts([
+    product({ id: "oil", name: "Óleo Extraordinario 100 ml", brand: "L'Oréal" }),
+    product({ id: "different", name: "Shampoo Hidratación Intensa 400 ml", brand: "L'Oréal", store: "Farmacity" }),
+    product({ id: "set", name: "Kit Óleo Extraordinario + Shampoo", brand: "L'Oréal", store: "Pigmento" }),
+  ]);
+  const families = buildCatalogFamilies(groups);
+  const oilFamily = families.find((family) => family.sets.length);
+
+  assert.equal(families.length, 2);
+  assert.equal(oilFamily.sets[0].unitPrice, null);
+  assert.equal(oilFamily.bestValueProductKey, null);
+});
+
+test("does not confuse the common x plus measurement notation with a pack", () => {
+  const [group] = groupEquivalentProducts([
+    product({ name: "Máscara Sky High x 7,2 ml" }),
+  ]);
+
+  assert.equal(group.productType, "single");
+  assert.equal(group.packCount, null);
+});
+
+test("does not claim best value when a pack count is unknown", () => {
+  const groups = groupEquivalentProducts([
+    product({ id: "single", name: "Shampoo Nutritivo 400 ml" }),
+    product({
+      id: "pack",
+      name: "Pack Shampoo Nutritivo 400 ml",
+      store: "Farmacity",
+      currentPrice: 10000,
+    }),
+  ]);
+  const [family] = buildCatalogFamilies(groups);
+
+  assert.equal(family.packs[0].packCount, null);
+  assert.equal(family.packs[0].unitPrice, null);
+  assert.equal(family.bestValueProductKey, null);
 });

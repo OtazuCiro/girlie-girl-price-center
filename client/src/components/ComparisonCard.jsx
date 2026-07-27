@@ -6,6 +6,57 @@ function formatPrice(value) {
   }).format(value);
 }
 
+function RelatedProducts({ title, products, bestValueProductKey }) {
+  if (!products?.length) return null;
+
+  return (
+    <details className="related-products">
+      <summary>
+        {title} <span>{products.length}</span>
+      </summary>
+      <div className="related-products__list">
+        {products.map((product) => {
+          const offer =
+            product.offers.find((candidate) => candidate.inStock) ??
+            product.offers[0];
+
+          return (
+            <article className="related-product" key={product.productKey}>
+              <div>
+                <strong>{product.name}</strong>
+                <span>{offer?.store ?? "Sin ofertas disponibles"}</span>
+                {offer && (
+                  <span className={offer.inStock ? "stock stock--available" : "stock"}>
+                    {offer.inStock ? "En stock" : "Sin stock"}
+                  </span>
+                )}
+                {product.unitPrice && (
+                  <small>{formatPrice(product.unitPrice)} por unidad</small>
+                )}
+                {product.productKey === bestValueProductKey && (
+                  <small className="best-value">Mejor valor por unidad</small>
+                )}
+              </div>
+              <div className="related-product__action">
+                {offer && <strong>{formatPrice(offer.currentPrice)}</strong>}
+                {offer && (
+                  <a
+                    href={offer.productUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Ver oferta
+                  </a>
+                )}
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </details>
+  );
+}
+
 function ComparisonCard({
   group,
   isFavorite = false,
@@ -88,6 +139,24 @@ function ComparisonCard({
               </section>
             );
           })}
+        </div>
+
+        <div className="related-sections">
+          <RelatedProducts
+            title="Otras presentaciones"
+            products={group.relatedProducts?.variants}
+            bestValueProductKey={group.bestValueProductKey}
+          />
+          <RelatedProducts
+            title="Packs"
+            products={group.relatedProducts?.packs}
+            bestValueProductKey={group.bestValueProductKey}
+          />
+          <RelatedProducts
+            title="Sets y combos"
+            products={group.relatedProducts?.sets}
+            bestValueProductKey={group.bestValueProductKey}
+          />
         </div>
       </div>
     </article>

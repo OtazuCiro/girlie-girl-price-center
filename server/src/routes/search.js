@@ -48,7 +48,8 @@ export function createSearchRouter({
 
       console.error("[product-search]", {
         code: controlledError.code,
-        stores: "Juleriaque, Farmacity, Pigmento",
+        stores:
+          "Juleriaque, Farmacity, Pigmento, Farmaonline, Farmaplus, Simplicity",
         query,
         cause: error instanceof Error ? error.message : "Unknown error",
       });

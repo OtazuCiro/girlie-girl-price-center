@@ -1,0 +1,21 @@
+[
+  {
+    "productId": "10",
+    "productName": "Máscara Sky High Waterproof 7,2 ml",
+    "brand": "Maybelline",
+    "link": "/mascara-sky-high-waterproof/p",
+    "items": [{
+      "itemId": "20",
+      "nameComplete": "Máscara Sky High Waterproof 7,2 ml",
+      "images": [{ "imageUrl": "https://images.example/product.jpg" }],
+      "sellers": [{
+        "commertialOffer": {
+          "Price": 15000,
+          "ListPrice": 20000,
+          "IsAvailable": true,
+          "AvailableQuantity": 4
+        }
+      }]
+    }]
+  }
+]
