@@ -8,7 +8,8 @@ Aplicación web mobile-first para comparar precios de productos de belleza en
 tiendas argentinas.
 
 La versión actual incluye una experiencia visual, búsqueda y comparación bajo
-demanda sobre los catálogos públicos de Juleriaque, Farmacity y Pigmento, una
+demanda sobre los catálogos públicos de Juleriaque, Farmacity, Pigmento,
+Farmaonline, Farmaplus y Simplicity, una
 API Express serverless y preparación PWA. No incluye base de datos,
 autenticación ni persistencia.
 
@@ -188,8 +189,9 @@ cambios.
 ## Comparación de tiendas
 
 `GET /api/search?q=<texto>` consulta concurrentemente los endpoints JSON
-públicos de Juleriaque, Farmacity y Pigmento. No requiere login ni navegador
-headless.
+públicos de Juleriaque, Farmacity, Pigmento, Farmaonline, Farmaplus y
+Simplicity. Las seis tiendas usan VTEX y comparten un adaptador configurable;
+no requieren login ni navegador headless.
 
 Cada adaptador:
 
@@ -205,13 +207,18 @@ Las tiendas se consultan en paralelo. Si alguna falla, la API devuelve los
 resultados disponibles y describe el estado de cada fuente en `sources`; sólo
 responde con error cuando fallan todas.
 
-El agrupamiento exige la misma marca y una coincidencia alta de términos. Además
-separa tamaños incompatibles y variantes fuertes como `waterproof`, `refill`,
-`pack` o `mini`, incluso cuando esas señales sólo aparecen en la URL. Es
-deliberadamente conservador: ante la duda deja ofertas separadas. “Mejor precio”
-se calcula sólo dentro de un grupo equivalente con al menos dos tiendas,
-ignorando ofertas sin stock; el ahorro se compara contra la siguiente oferta
-disponible.
+`productKey` identifica una presentación exacta y estable. Sólo ofertas de la
+misma marca, tamaño, variante, tipo y cantidad de unidades pueden competir por
+“Mejor precio”. Tamaños distintos, una unidad y un pack, packs con cantidades
+distintas, variantes `waterproof` o `refill`, y sets frente a productos
+individuales permanecen siempre separados. Un pack, kit, set o combo puede
+aparecer como resultado propio y sólo se agrupa si otra tienda devuelve esa
+misma presentación exacta.
+
+El agrupamiento es deliberadamente conservador: ante la duda deja ofertas
+separadas. “Mejor precio” se calcula sólo dentro de una presentación
+exacta con al menos dos tiendas, ignorando ofertas sin stock; el ahorro se
+compara contra la siguiente oferta disponible.
 
 La caché es oportunista: puede perderse cuando Vercel recicla una función. No se
 realiza fallback silencioso a mocks. Los mocks de `client/src/data/` se conservan
@@ -219,8 +226,8 @@ exclusivamente para tests.
 
 ## Favoritos
 
-Los favoritos representan productos agrupados, no ofertas de una tienda. Se
-guardan en `localStorage` mediante una capa dedicada y la clave versionada
+Los favoritos representan una presentación exacta (`productKey`), no ofertas de
+una tienda. Se guardan en `localStorage` mediante una capa dedicada y la clave versionada
 `girlieGirl:favorites:v1`. Esta opción mantiene v1.1 pequeña y privada para una
 única usuaria, sin requerir cuentas ni base de datos.
 

@@ -148,3 +148,52 @@ test("ignores out-of-stock offers for best price and keeps unmatched products", 
   assert.equal(mascara.bestPriceOfferId, "available");
   assert.equal(mascara.savings, null);
 });
+
+test("keeps a unit, pack x2 and pack x3 as separate exact products", () => {
+  const groups = groupEquivalentProducts([
+    product({ id: "single", name: "Óleo Extraordinario 100 ml", brand: "L'Oréal", currentPrice: 12000 }),
+    product({ id: "pack-2", name: "Óleo Extraordinario 100 ml pack x2", brand: "L'Oréal", store: "Farmacity", currentPrice: 22000 }),
+    product({ id: "pack-3", name: "Óleo Extraordinario 100 ml pack x3", brand: "L'Oréal", store: "Pigmento", currentPrice: 30000 }),
+  ]);
+
+  assert.equal(groups.length, 3);
+  assert.ok(groups.every((group) => group.offers.length === 1));
+});
+
+test("keeps different sizes as separate exact products", () => {
+  const groups = groupEquivalentProducts([
+    product({ id: "100", name: "Óleo Extraordinario 100 ml", brand: "L'Oréal", currentPrice: 12000 }),
+    product({ id: "50", name: "Óleo Extraordinario 50 ml", brand: "L'Oréal", store: "Farmacity", currentPrice: 8000 }),
+  ]);
+
+  assert.equal(groups.length, 2);
+});
+
+test("keeps a set separate from an individual product", () => {
+  const groups = groupEquivalentProducts([
+    product({ id: "single", name: "Óleo Extraordinario 100 ml", brand: "L'Oréal", currentPrice: 12000 }),
+    product({ id: "set", name: "Kit Óleo Extraordinario + Shampoo", brand: "L'Oréal", store: "Farmacity", currentPrice: 20000 }),
+  ]);
+
+  assert.equal(groups.length, 2);
+});
+
+test("groups the same exact set from two stores", () => {
+  const groups = groupEquivalentProducts([
+    product({ id: "set-a", name: "Daywear Skincare Set", brand: "Estée Lauder" }),
+    product({ id: "set-b", name: "Daywear Skincare Set", brand: "Estée Lauder", store: "Farmacity", currentPrice: 18000 }),
+  ]);
+
+  assert.equal(groups.length, 1);
+  assert.equal(groups[0].offers.length, 2);
+  assert.equal(groups[0].bestPriceOfferId, "set-b");
+});
+
+test("keeps refill and complete product separate", () => {
+  const groups = groupEquivalentProducts([
+    product({ name: "Crema Hidratante 50 ml" }),
+    product({ id: "refill", name: "Crema Hidratante Refill 50 ml", store: "Farmacity" }),
+  ]);
+
+  assert.equal(groups.length, 2);
+});

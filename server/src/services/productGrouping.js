@@ -19,9 +19,11 @@ const VARIANT_TERMS = new Map([
   ["waterproof", /\b(waterproof|resistente al agua)\b/],
   ["washable", /\b(washable|lavable)\b/],
   ["refill", /\b(refill|repuesto|recarga)\b/],
-  ["pack", /\b(pack|kit|set|combo)\b/],
   ["mini", /\b(mini|travel size)\b/],
 ]);
+
+const SET_PATTERN = /\b(kit|set|combo)\b/;
+const PACK_PATTERN = /\b(pack|multipack|duo)\b/;
 
 const KNOWN_URL_BRANDS = [
   "anastasia",
@@ -49,9 +51,40 @@ function extractSizes(text) {
       /\b(\d+(?:[.,]\d+)?)\s*(ml|g|gr|kg|l|un|unidad|unidades)\b/g,
     ),
   ].map((match) => {
-    const unit = match[2].startsWith("un") ? "un" : match[2] === "gr" ? "g" : match[2];
+    const unit = match[2].startsWith("un")
+      ? "un"
+      : match[2] === "gr"
+        ? "g"
+        : match[2];
     return `${Number(match[1].replace(",", "."))}${unit}`;
   });
+}
+
+function extractPackCount(text) {
+  if (/\bduo\b/.test(text)) return 2;
+
+  const patterns = [
+    /\b(?:pack|multipack)\s*(?:de\s*)?(?:x\s*)?(\d+)\b/,
+    /\bx(\d+)\b/,
+    /\bx\s+(\d+)\s*(?:un|unidad|unidades)\b/,
+    /\b(\d+)\s*(?:un|unidad|unidades)\b/,
+  ];
+
+  for (const pattern of patterns) {
+    const count = Number(text.match(pattern)?.[1]);
+    if (Number.isInteger(count) && count > 1) return count;
+  }
+
+  return null;
+}
+
+function describePresentation(name) {
+  if (SET_PATTERN.test(name)) return { type: "set", count: null };
+
+  const count = extractPackCount(name);
+  if (PACK_PATTERN.test(name) || count) return { type: "pack", count };
+
+  return { type: "single", count: null };
 }
 
 function describe(product) {
@@ -65,6 +98,7 @@ function describe(product) {
       normalizedUrl.includes(knownBrand) && !compactBrand.includes(knownBrand),
   );
   const sizes = extractSizes(name);
+  const presentation = describePresentation(name);
   const variants = [...VARIANT_TERMS]
     .filter(([, pattern]) => pattern.test(comparisonText))
     .map(([key]) => key);
@@ -76,7 +110,15 @@ function describe(product) {
       .filter((token) => token.length > 1 && !ignored.has(token)),
   );
 
-  return { brand, name, sizes, variants, tokens, urlBrandConflict };
+  return {
+    brand,
+    name,
+    sizes,
+    variants,
+    tokens,
+    urlBrandConflict,
+    presentation,
+  };
 }
 
 function sameSet(left, right) {
@@ -106,6 +148,8 @@ function equivalent(leftProduct, rightProduct) {
   const right = describe(rightProduct);
   if (!left.brand || left.brand !== right.brand) return false;
   if (left.urlBrandConflict || right.urlBrandConflict) return false;
+  if (left.presentation.type !== right.presentation.type) return false;
+  if (left.presentation.count !== right.presentation.count) return false;
   if (!sameSet(left.variants, right.variants)) return false;
   if (left.sizes.length && right.sizes.length && !sameSet(left.sizes, right.sizes)) {
     return false;

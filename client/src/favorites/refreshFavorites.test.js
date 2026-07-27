@@ -77,4 +77,5 @@ describe("refreshFavorites", () => {
 
     expect(maximum).toBeLessThanOrEqual(3);
   });
+
 });

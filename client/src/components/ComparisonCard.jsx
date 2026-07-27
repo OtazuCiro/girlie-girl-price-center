@@ -89,6 +89,7 @@ function ComparisonCard({
             );
           })}
         </div>
+
       </div>
     </article>
   );
