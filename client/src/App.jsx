@@ -6,6 +6,7 @@ import {
   favoritesStorage,
 } from "./favorites/favoritesStorage.js";
 import { refreshFavorites } from "./favorites/refreshFavorites.js";
+import { shareGirlieGirl } from "./utils/shareGirlieGirl.js";
 
 const CATEGORIES = ["Maquillaje", "Pelo", "Skincare"];
 
@@ -14,6 +15,17 @@ function SearchIcon() {
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <circle cx="11" cy="11" r="6.5" />
       <path d="m16 16 4 4" />
+    </svg>
+  );
+}
+
+function ShareIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="18" cy="5" r="2.5" />
+      <circle cx="6" cy="12" r="2.5" />
+      <circle cx="18" cy="19" r="2.5" />
+      <path d="m8.2 10.8 7.6-4.4M8.2 13.2l7.6 4.4" />
     </svg>
   );
 }
@@ -28,7 +40,9 @@ function App() {
   const [activeView, setActiveView] = useState("search");
   const [favorites, setFavorites] = useState(() => favoritesStorage.getAll());
   const [favoriteUpdates, setFavoriteUpdates] = useState({});
+  const [shareFeedback, setShareFeedback] = useState("");
   const searchRun = useRef(0);
+  const shareFeedbackTimeout = useRef(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -48,6 +62,15 @@ function App() {
     checkBackend();
     return () => controller.abort();
   }, []);
+
+  useEffect(
+    () => () => {
+      if (shareFeedbackTimeout.current) {
+        clearTimeout(shareFeedbackTimeout.current);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     if (activeView !== "favorites" || !favorites.length) return undefined;
@@ -127,6 +150,19 @@ function App() {
     setActiveView("search");
   }
 
+  async function handleShare() {
+    const result = await shareGirlieGirl();
+    if (result === "shared" || result === "cancelled") return;
+
+    setShareFeedback(
+      result === "copied" ? "Link copiado 💗" : "No pudimos compartir ahora",
+    );
+    if (shareFeedbackTimeout.current) {
+      clearTimeout(shareFeedbackTimeout.current);
+    }
+    shareFeedbackTimeout.current = setTimeout(() => setShareFeedback(""), 2500);
+  }
+
   const statusLabel =
     backendStatus === "connected"
       ? "Servicio conectado"
@@ -154,6 +190,15 @@ function App() {
         </a>
         <div className="header-actions">
           <button
+            className="share-button"
+            type="button"
+            aria-label="Compartir Girlie Girl"
+            title="Compartir Girlie Girl"
+            onClick={handleShare}
+          >
+            <ShareIcon />
+          </button>
+          <button
             className={`favorites-link ${activeView === "favorites" ? "favorites-link--active" : ""}`}
             type="button"
             onClick={() => setActiveView("favorites")}
@@ -167,6 +212,11 @@ function App() {
             title={statusLabel}
             aria-label={statusLabel}
           />
+          {shareFeedback && (
+            <span className="share-feedback" role="status">
+              {shareFeedback}
+            </span>
+          )}
         </div>
       </header>
 
@@ -332,7 +382,7 @@ function App() {
       </main>
 
       <footer>
-        <p>Powered by tu gordito 💗</p>
+        <p>For Cami, now for the girlies 💗</p>
         <span>Girlie Girl Price Central</span>
       </footer>
     </div>

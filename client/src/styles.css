@@ -57,7 +57,11 @@ button { cursor: pointer; }
 .connection { width: 0.55rem; height: 0.55rem; background: #c9c0c2; border-radius: 50%; }
 .connection--connected { background: var(--color-success); box-shadow: 0 0 0 0.2rem #e3f1e9; }
 .connection--unavailable { background: var(--color-danger); }
-.header-actions { display: flex; align-items: center; gap: 0.9rem; }
+.header-actions { position: relative; display: flex; align-items: center; gap: 0.55rem; }
+.share-button { display: grid; flex: 0 0 2.75rem; width: 2.75rem; height: 2.75rem; place-items: center; padding: 0; color: var(--color-text-secondary); background: transparent; border: 0; border-radius: 0.75rem; }
+.share-button:hover, .share-button:focus-visible { color: var(--color-primary-pressed); background: var(--color-primary-soft); }
+.share-button svg { width: 1.15rem; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
+.share-feedback { position: absolute; z-index: 2; top: calc(100% + 0.35rem); right: 0; padding: 0.5rem 0.65rem; color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 0.6rem; box-shadow: 0 0.5rem 1.2rem rgb(69 42 51 / 10%); font-size: 0.72rem; white-space: nowrap; }
 .favorites-link { display: inline-flex; min-height: 2.75rem; align-items: center; gap: 0.4rem; padding: 0.45rem 0.65rem; color: var(--color-text-secondary); background: transparent; border: 0; border-radius: 0.75rem; font-size: 0.78rem; font-weight: 700; }
 .favorites-link > span { color: var(--color-primary); font-size: 1.05rem; }
 .favorites-link small { display: grid; min-width: 1.2rem; height: 1.2rem; place-items: center; color: white; background: var(--color-primary); border-radius: 999px; font-size: 0.62rem; }
@@ -156,6 +160,7 @@ footer span { text-align: right; }
   .results-heading select { max-width: 8.7rem; font-size: 0.78rem; }
   .product-card { grid-template-columns: 6.7rem minmax(0, 1fr); }
   .product-card__image { min-height: 10rem; padding: 0.6rem; }
+  .favorites-link { padding-inline: 0.45rem; }
 }
 
 @media (min-width: 640px) {

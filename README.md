@@ -234,3 +234,23 @@ dispositivo. No se sincronizan con otros dispositivos o navegadores y pueden
 perderse si Safari elimina los datos del sitio o la usuaria los borra. Una
 implementación server-side futura puede reemplazar la capa de almacenamiento sin
 cambiar los componentes de la interfaz.
+
+## Compartir y privacidad
+
+La acción **Compartir Girlie Girl** usa Web Share API en navegadores compatibles
+y, como fallback, copia el `origin` actual al portapapeles. La metadata Open Graph
+y Twitter utiliza el asset estático `client/public/social-preview.png` de
+1200×630. No se hardcodean URLs de Preview.
+
+La aplicación no incorpora analytics, trackers, cookies publicitarias,
+fingerprinting, cuentas ni datos personales. Los únicos datos persistentes son
+los favoritos funcionales guardados localmente en cada navegador.
+
+La caché server-side sólo contiene resultados públicos por tienda y consulta; no
+guarda estado de una usuaria ni mezcla respuestas entre búsquedas distintas.
+Cada request construye su propia respuesta y las consultas a tiendas continúan
+siendo concurrentes y tolerantes a fallos parciales. Para la escala inicial no se
+agrega un rate limiter propio: Vercel aporta límites de plataforma y cada
+búsqueda ya tiene límite de resultados, timeout y caché. Si el tráfico o abuso
+real lo justifican, deberá evaluarse protección en el borde sin introducir
+fricción en el uso normal.

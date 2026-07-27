@@ -1,6 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import App from "./App.jsx";
 import { filterProducts } from "./data/mockProducts.js";
@@ -58,9 +58,35 @@ describe("Girlie Girl Price Central", () => {
     expect(
       screen.getByText("Que complementes tu preciosura con los mejores precios."),
     ).toBeInTheDocument();
-    expect(screen.getByText("Powered by tu gordito 💗")).toBeInTheDocument();
+    expect(
+      screen.getByText("For Cami, now for the girlies 💗"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Powered by tu gordito 💗")).not.toBeInTheDocument();
     expect(screen.getByPlaceholderText("¿Qué estamos buscando hoy?")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Maquillaje" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Compartir Girlie Girl" }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows clipboard feedback when native sharing is unavailable", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "share", {
+      configurable: true,
+      value: undefined,
+    });
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    render(<App />);
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Compartir Girlie Girl" }),
+    );
+
+    expect(await screen.findByText("Link copiado 💗")).toBeInTheDocument();
+    expect(writeText).toHaveBeenCalledWith(window.location.origin);
   });
 
   it("searches mock products and renders results", async () => {
