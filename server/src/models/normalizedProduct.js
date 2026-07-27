@@ -15,16 +15,4 @@
  * @property {boolean} inStock
  */
 
-/**
- * Una presentación exacta agrupada entre tiendas.
- *
- * @typedef {Object} ProductComparison
- * @property {string} productKey Identidad estable de marca + presentación exacta.
- * @property {string} productFamilyKey Identidad de la familia conceptual.
- * @property {"single"|"pack"|"set"} productType
- * @property {number|null} packCount Cantidad sólo cuando es confiable.
- * @property {number|null} unitPrice Precio de la mejor oferta dividido por packCount.
- * @property {NormalizedProduct[]} offers
- */
-
 export {};

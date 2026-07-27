@@ -78,31 +78,4 @@ describe("refreshFavorites", () => {
     expect(maximum).toBeLessThanOrEqual(3);
   });
 
-  it("keeps the exact favorite and enriches it with its related family", async () => {
-    const exact = group("product-single", "offer-single");
-    const pack = group("product-pack", "offer-pack");
-    const fetchImpl = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        groups: [exact, pack],
-        families: [{
-          productFamilyKey: "family-oil",
-          primary: exact,
-          variants: [],
-          packs: [pack],
-          sets: [],
-          bestValueProductKey: "product-pack",
-        }],
-      }),
-    });
-
-    const [result] = await refreshFavorites(
-      [favorite("product-single", "offer-single")],
-      { fetchImpl },
-    );
-
-    expect(result.group.productKey).toBe("product-single");
-    expect(result.group.relatedProducts.packs).toEqual([pack]);
-    expect(result.group.bestValueProductKey).toBe("product-pack");
-  });
 });

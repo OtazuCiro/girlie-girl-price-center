@@ -31,6 +31,7 @@ test("queries stores concurrently and combines their products", async () => {
   const response = await searchPromise;
   assert.equal(response.results.length, 3);
   assert.ok(response.sources.every((source) => source.status === "ok"));
+  assert.equal(Object.hasOwn(response, "families"), false);
 });
 
 test("returns partial results and source status when one store fails", async () => {

@@ -209,18 +209,14 @@ responde con error cuando fallan todas.
 
 `productKey` identifica una presentación exacta y estable. Sólo ofertas de la
 misma marca, tamaño, variante, tipo y cantidad de unidades pueden competir por
-“Mejor precio”. `productFamilyKey` relaciona de forma conservadora presentaciones
-conceptuales: tamaños alternativos, packs homogéneos y sets o combos.
+“Mejor precio”. Tamaños distintos, una unidad y un pack, packs con cantidades
+distintas, variantes `waterproof` o `refill`, y sets frente a productos
+individuales permanecen siempre separados. Un pack, kit, set o combo puede
+aparecer como resultado propio y sólo se agrupa si otra tienda devuelve esa
+misma presentación exacta.
 
-Los tipos explícitos son `single`, `pack` y `set`. Un pack requiere una señal
-fiable (`pack x2`, `x2`, `2 unidades` o `dúo`); expresiones de contenido como
-`x 7,2 ml` no se interpretan como cantidad. Los packs x2 y x3 no compiten entre
-sí ni contra una unidad. Sólo los packs homogéneos con cantidad y tamaño claros
-calculan precio por unidad y pueden recibir “Mejor valor por unidad”. Los sets
-mixtos nunca se normalizan por unidad.
-
-El agrupamiento es deliberadamente conservador: ante la duda deja ofertas o
-familias separadas. “Mejor precio” se calcula sólo dentro de una presentación
+El agrupamiento es deliberadamente conservador: ante la duda deja ofertas
+separadas. “Mejor precio” se calcula sólo dentro de una presentación
 exacta con al menos dos tiendas, ignorando ofertas sin stock; el ahorro se
 compara contra la siguiente oferta disponible.
 
@@ -231,17 +227,14 @@ exclusivamente para tests.
 ## Favoritos
 
 Los favoritos representan una presentación exacta (`productKey`), no ofertas de
-una tienda ni toda su familia. Se
-guardan en `localStorage` mediante una capa dedicada y la clave versionada
+una tienda. Se guardan en `localStorage` mediante una capa dedicada y la clave versionada
 `girlieGirl:favorites:v1`. Esta opción mantiene v1.1 pequeña y privada para una
 única usuaria, sin requerir cuentas ni base de datos.
 
 Al abrir **Mis favoritos**, la aplicación vuelve a consultar la API en lotes
 limitados y muestra precios y stock actuales. Los precios no se persisten. Si un
 producto no puede actualizarse, permanece guardado y se indica que no hay
-ofertas disponibles en ese momento. Las presentaciones, packs y sets de su
-familia pueden aparecer como información secundaria sin guardarse
-automáticamente.
+ofertas disponibles en ese momento.
 
 En iOS, los favoritos pertenecen al almacenamiento local del sitio/PWA en ese
 dispositivo. No se sincronizan con otros dispositivos o navegadores y pueden

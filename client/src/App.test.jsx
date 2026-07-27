@@ -163,69 +163,67 @@ describe("Girlie Girl Price Central", () => {
     expect(screen.getAllByRole("link", { name: "Ver oferta" })).toHaveLength(2);
   });
 
-  it("shows related packs compactly without treating them as the best total price", async () => {
-    const offer = {
-      id: "single-offer",
-      store: "Pigmento",
-      currentPrice: 12000,
+  it("renders packs and sets as independent cards without related sections", async () => {
+    const offer = (id, name) => ({
+      id,
+      name,
+      brand: "Marca",
+      store: "Tienda",
+      currentPrice: 20000,
       previousPrice: null,
       discountPercentage: null,
-      productUrl: "https://example.com/single",
-      inStock: true,
-    };
-    const primary = {
-      id: "single",
-      productKey: "product-single",
-      brand: "L'Oréal",
-      name: "Óleo Extraordinario 100 ml",
       imageUrl: "",
-      offers: [offer],
-      bestPriceOfferId: offer.id,
-      lowestPrice: 12000,
-      savings: null,
+      productUrl: `https://example.com/${id}`,
       inStock: true,
-      productType: "single",
-    };
-    const pack = {
-      ...primary,
-      id: "pack",
-      productKey: "product-pack",
-      name: "Óleo Extraordinario 100 ml pack x2",
-      productType: "pack",
-      packCount: 2,
-      unitPrice: 10000,
-      lowestPrice: 20000,
-      offers: [{ ...offer, id: "pack-offer", currentPrice: 20000 }],
-    };
+    });
+    const groups = [
+      {
+        id: "pack",
+        productKey: "product-pack",
+        brand: "Marca",
+        name: "Producto 100 ml pack x2",
+        imageUrl: "",
+        offers: [offer("pack-offer", "Producto 100 ml pack x2")],
+        bestPriceOfferId: "pack-offer",
+        lowestPrice: 20000,
+        savings: null,
+        inStock: true,
+      },
+      {
+        id: "set",
+        productKey: "product-set",
+        brand: "Marca",
+        name: "Kit Producto + Shampoo",
+        imageUrl: "",
+        offers: [offer("set-offer", "Kit Producto + Shampoo")],
+        bestPriceOfferId: "set-offer",
+        lowestPrice: 20000,
+        savings: null,
+        inStock: true,
+      },
+    ];
     global.fetch.mockImplementation(async (url) =>
       url === "/api/health"
         ? { ok: true, json: async () => ({ status: "ok" }) }
         : {
             ok: true,
             json: async () => ({
-              results: [offer],
-              groups: [primary, pack],
+              results: groups.flatMap((group) => group.offers),
+              groups,
               sources: [],
-              families: [{
-                productFamilyKey: "family-oil",
-                primary,
-                variants: [],
-                packs: [pack],
-                sets: [],
-                bestValueProductKey: pack.productKey,
-              }],
             }),
           },
     );
 
     render(<App />);
-    await searchFor("oleo");
-    expect(await screen.findByText("1 productos encontrados")).toBeInTheDocument();
-    expect(screen.getByText("Packs")).toBeInTheDocument();
-    await userEvent.click(screen.getByText("Packs"));
-    expect(screen.getByText("$ 10.000 por unidad")).toBeInTheDocument();
-    expect(screen.getByText("Mejor valor por unidad")).toBeInTheDocument();
-    expect(screen.queryByText("Mejor precio")).not.toBeInTheDocument();
+    await searchFor("producto");
+
+    expect(await screen.findByText("2 productos encontrados")).toBeInTheDocument();
+    expect(screen.getByText("Producto 100 ml pack x2")).toBeInTheDocument();
+    expect(screen.getByText("Kit Producto + Shampoo")).toBeInTheDocument();
+    expect(screen.queryByText("Packs")).not.toBeInTheDocument();
+    expect(screen.queryByText("Sets y combos")).not.toBeInTheDocument();
+    expect(screen.queryByText("Mejor valor por unidad")).not.toBeInTheDocument();
   });
 
   it("shows an empty state when no mock matches", async () => {

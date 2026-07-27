@@ -5,7 +5,6 @@ import { juleriaqueStore } from "../stores/juleriaque/search.js";
 import { pigmentoStore } from "../stores/pigmento/search.js";
 import { simplicityStore } from "../stores/simplicity/search.js";
 import {
-  buildCatalogFamilies,
   groupEquivalentProducts,
   normalizeProductText,
 } from "./productGrouping.js";
@@ -87,7 +86,6 @@ export function createProductSearchService({
       return {
         results,
         groups,
-        families: buildCatalogFamilies(groups),
         sources,
       };
     },

@@ -51,7 +51,11 @@ function extractSizes(text) {
       /\b(\d+(?:[.,]\d+)?)\s*(ml|g|gr|kg|l|un|unidad|unidades)\b/g,
     ),
   ].map((match) => {
-    const unit = match[2].startsWith("un") ? "un" : match[2] === "gr" ? "g" : match[2];
+    const unit = match[2].startsWith("un")
+      ? "un"
+      : match[2] === "gr"
+        ? "g"
+        : match[2];
     return `${Number(match[1].replace(",", "."))}${unit}`;
   });
 }
@@ -74,15 +78,13 @@ function extractPackCount(text) {
   return null;
 }
 
-function classifyProduct(name) {
-  if (SET_PATTERN.test(name)) return { productType: "set", packCount: null };
+function describePresentation(name) {
+  if (SET_PATTERN.test(name)) return { type: "set", count: null };
 
-  const packCount = extractPackCount(name);
-  if (PACK_PATTERN.test(name) || packCount) {
-    return { productType: "pack", packCount };
-  }
+  const count = extractPackCount(name);
+  if (PACK_PATTERN.test(name) || count) return { type: "pack", count };
 
-  return { productType: "single", packCount: null };
+  return { type: "single", count: null };
 }
 
 function describe(product) {
@@ -96,7 +98,7 @@ function describe(product) {
       normalizedUrl.includes(knownBrand) && !compactBrand.includes(knownBrand),
   );
   const sizes = extractSizes(name);
-  const { productType, packCount } = classifyProduct(name);
+  const presentation = describePresentation(name);
   const variants = [...VARIANT_TERMS]
     .filter(([, pattern]) => pattern.test(comparisonText))
     .map(([key]) => key);
@@ -115,8 +117,7 @@ function describe(product) {
     variants,
     tokens,
     urlBrandConflict,
-    productType,
-    packCount,
+    presentation,
   };
 }
 
@@ -140,37 +141,6 @@ export function createProductKey(product) {
   return `product-${hashIdentity(identity)}`;
 }
 
-function familyTokens(product) {
-  const description = describe(product);
-  const ignored = new Set([
-    ...STOP_WORDS,
-    ...description.brand.split(" "),
-    ...description.variants,
-    "pack",
-    "multipack",
-    "duo",
-    "kit",
-    "set",
-    "combo",
-    "unidad",
-    "unidades",
-  ]);
-
-  return new Set(
-    description.name
-      .replace(/\b\d+(?:[.,]\d+)?\s*(ml|g|gr|kg|l|un|unidad|unidades)\b/g, " ")
-      .replace(/\bx\s*\d+\b/g, " ")
-      .split(" ")
-      .filter((token) => token.length > 1 && !ignored.has(token)),
-  );
-}
-
-export function createProductFamilyKey(product) {
-  const brand = normalizeProductText(product.brand);
-  const signature = [...familyTokens(product)].sort().join(" ");
-  return `family-${hashIdentity(`${brand} ${signature}`)}`;
-}
-
 function equivalent(leftProduct, rightProduct) {
   if (leftProduct.store === rightProduct.store) return false;
 
@@ -178,8 +148,8 @@ function equivalent(leftProduct, rightProduct) {
   const right = describe(rightProduct);
   if (!left.brand || left.brand !== right.brand) return false;
   if (left.urlBrandConflict || right.urlBrandConflict) return false;
-  if (left.productType !== right.productType) return false;
-  if (left.packCount !== right.packCount) return false;
+  if (left.presentation.type !== right.presentation.type) return false;
+  if (left.presentation.count !== right.presentation.count) return false;
   if (!sameSet(left.variants, right.variants)) return false;
   if (left.sizes.length && right.sizes.length && !sameSet(left.sizes, right.sizes)) {
     return false;
@@ -207,18 +177,10 @@ function buildGroup(offers, index) {
   })[0];
   const best = available[0] ?? null;
   const nextBest = available[1] ?? null;
-  const { productType, packCount } = describe(representative);
 
   return {
     id: `comparison-${index}-${representative.id}`,
     productKey: createProductKey(representative),
-    productFamilyKey: createProductFamilyKey(representative),
-    productType,
-    packCount,
-    unitPrice:
-      productType === "pack" && packCount && best
-        ? best.currentPrice / packCount
-        : null,
     brand: representative.brand,
     name: representative.name,
     imageUrl: representative.imageUrl,
@@ -234,138 +196,6 @@ function buildGroup(offers, index) {
         : null,
     inStock: Boolean(best),
   };
-}
-
-function familiesAreRelated(left, right) {
-  const leftDescription = describe(left);
-  const rightDescription = describe(right);
-  if (!leftDescription.brand || leftDescription.brand !== rightDescription.brand) {
-    return false;
-  }
-  if (leftDescription.urlBrandConflict || rightDescription.urlBrandConflict) {
-    return false;
-  }
-
-  const leftTokens = familyTokens(left);
-  const rightTokens = familyTokens(right);
-  const intersection = [...leftTokens].filter((token) => rightTokens.has(token));
-  return (
-    leftTokens.size > 0 &&
-    rightTokens.size > 0 &&
-    (sameSet([...leftTokens].sort(), [...rightTokens].sort()) ||
-      (intersection.length >= 2 &&
-        (intersection.length === leftTokens.size ||
-          intersection.length === rightTokens.size)))
-  );
-}
-
-function representativeOffer(group) {
-  return group.offers[0];
-}
-
-function itemSize(group) {
-  const sizes = extractSizes(normalizeProductText(group.name)).filter(
-    (size) => !size.endsWith("un"),
-  );
-  return sizes.length === 1 ? sizes[0] : null;
-}
-
-function choosePrimary(groups) {
-  const singles = groups.filter((group) => group.productType === "single");
-  return [...(singles.length ? singles : groups)].sort(
-    (left, right) =>
-      right.offers.length - left.offers.length ||
-      left.name.localeCompare(right.name, "es") ||
-      left.productKey.localeCompare(right.productKey),
-  )[0];
-}
-
-export function buildCatalogFamilies(groups) {
-  const pending = [];
-  const ordered = [...groups].sort(
-    (left, right) =>
-      (left.productType === "single" ? 0 : 1) -
-        (right.productType === "single" ? 0 : 1) ||
-      left.productKey.localeCompare(right.productKey),
-  );
-
-  for (const group of ordered) {
-    const offer = representativeOffer(group);
-    const family = pending.find((members) =>
-      members.some((member) =>
-        familiesAreRelated(representativeOffer(member), offer),
-      ),
-    );
-    if (family) family.push(group);
-    else pending.push([group]);
-  }
-
-  return pending
-    .map((members) => {
-      const primary = choosePrimary(members);
-      const productFamilyKey = createProductFamilyKey(
-        representativeOffer(primary),
-      );
-      const normalized = members.map((group) => ({
-        ...group,
-        productFamilyKey,
-      }));
-      const normalizedPrimary = normalized.find(
-        (group) => group.productKey === primary.productKey,
-      );
-      const variants = normalized.filter(
-        (group) =>
-          group.productType === "single" &&
-          group.productKey !== normalizedPrimary.productKey,
-      );
-      const packs = normalized.filter(
-        (group) => group.productType === "pack",
-      );
-      const sets = normalized.filter((group) => group.productType === "set");
-      const valueCandidates = [normalizedPrimary, ...variants, ...packs].filter(
-        (group) =>
-          group.inStock &&
-          itemSize(group) &&
-          (group.productType !== "pack" || Number.isFinite(group.unitPrice)),
-      );
-      const sizes = new Set(valueCandidates.map(itemSize));
-      const comparable =
-        valueCandidates.length >= 2 && sizes.size === 1
-          ? valueCandidates
-          : [];
-      const bestValue = comparable.sort((left, right) => {
-        const leftUnit =
-          left.productType === "pack"
-            ? left.unitPrice
-            : left.lowestPrice;
-        const rightUnit =
-          right.productType === "pack"
-            ? right.unitPrice
-            : right.lowestPrice;
-        return leftUnit - rightUnit;
-      })[0];
-
-      return {
-        id: productFamilyKey,
-        productFamilyKey,
-        brand: normalizedPrimary.brand,
-        name: normalizedPrimary.name,
-        primary: normalizedPrimary,
-        variants,
-        packs,
-        sets,
-        bestValueProductKey: bestValue?.productKey ?? null,
-      };
-    })
-    .sort((left, right) => {
-      if (left.primary.inStock !== right.primary.inStock) {
-        return left.primary.inStock ? -1 : 1;
-      }
-      return (
-        (left.primary.lowestPrice ?? Infinity) -
-        (right.primary.lowestPrice ?? Infinity)
-      );
-    });
 }
 
 export function groupEquivalentProducts(products) {

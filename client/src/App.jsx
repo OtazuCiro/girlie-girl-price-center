@@ -10,21 +10,6 @@ import { shareGirlieGirl } from "./utils/shareGirlieGirl.js";
 
 const CATEGORIES = ["Maquillaje", "Pelo", "Skincare"];
 
-function displayGroups(data) {
-  if (!Array.isArray(data.families)) return data.groups;
-
-  return data.families.map((family) => ({
-    ...family.primary,
-    productFamilyKey: family.productFamilyKey,
-    relatedProducts: {
-      variants: family.variants,
-      packs: family.packs,
-      sets: family.sets,
-    },
-    bestValueProductKey: family.bestValueProductKey,
-  }));
-}
-
 function SearchIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -136,10 +121,9 @@ function App() {
       }
 
       if (currentRun !== searchRun.current) return;
-      const nextGroups = displayGroups(data);
-      setGroups(nextGroups);
+      setGroups(data.groups);
       setSources(Array.isArray(data.sources) ? data.sources : []);
-      setViewState(nextGroups.length ? "results" : "empty");
+      setViewState(data.groups.length ? "results" : "empty");
     } catch {
       if (currentRun === searchRun.current) setViewState("error");
     }
