@@ -151,6 +151,14 @@ function hashIdentity(value) {
 
 export function createProductKey(product) {
   const identity = normalizeLegacyIdentityText(
+    product.canonicalProductIdentity ??
+      `${product.originalBrand ?? product.brand} ${product.originalName ?? product.name}`,
+  );
+  return `product-${hashIdentity(identity)}`;
+}
+
+function createHistoryProductKey(product) {
+  const identity = normalizeLegacyIdentityText(
     `${product.originalBrand ?? product.brand} ${product.originalName ?? product.name}`,
   );
   return `product-${hashIdentity(identity)}`;
@@ -198,7 +206,7 @@ function buildGroup(offers, index) {
   const nextBest = available[1] ?? null;
   const offersWithHistoryIdentity = offers.map((offer) => ({
     ...offer,
-    historyProductKey: createProductKey(offer),
+    historyProductKey: createHistoryProductKey(offer),
   }));
 
   return {

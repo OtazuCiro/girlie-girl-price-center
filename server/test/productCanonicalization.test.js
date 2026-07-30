@@ -145,6 +145,69 @@ test("keeps waterproof, washable, colors and sizes distinct", () => {
   assert.equal(groups.length, 4);
 });
 
+test("expands explicit variant aliases before names, search tokens and product keys", () => {
+  const full = normalizeProduct(
+    offer("Panorama All Night Black", { store: "Juleriaque" }),
+  );
+  const abbreviated = normalizeProduct(
+    offer("Panorama All Nb 9,9 ml", { store: "Farmacity" }),
+  );
+
+  assert.equal(abbreviated.normalizedName, full.normalizedName);
+  assert.equal(abbreviated.displayName, full.displayName);
+  assert.deepEqual(abbreviated.searchTokens, full.searchTokens);
+  assert.equal(createProductKey(abbreviated), createProductKey(full));
+  assert.equal(createProductKey(full), "product-1fet03c");
+  assert.equal(
+    full.displayName,
+    "L'Oréal Paris Panorama All Night Black 9,9 ml",
+  );
+  assert.ok(full.searchTokens.includes("night"));
+  assert.ok(!full.searchTokens.includes("nb"));
+});
+
+test("groups All NB with All Night Black but keeps explicit variants separate", () => {
+  const groups = groupEquivalentProducts([
+    offer("Panorama All Night Black", {
+      id: "all-night",
+      store: "Juleriaque",
+    }),
+    offer("Panorama All Nb 9,9 ml", {
+      id: "all-nb",
+      store: "Farmacity",
+    }),
+    offer("Panorama Black Waterproof 9,9 ml", {
+      id: "waterproof",
+      store: "Pigmento",
+    }),
+    offer("Panorama Black Washable 9,9 ml", {
+      id: "washable",
+      store: "Simplicity",
+    }),
+    offer("Panorama All Night Brown 9,9 ml", {
+      id: "brown",
+      store: "Farmaonline",
+    }),
+    offer("Panorama All Night Black 7,2 ml", {
+      id: "different-size",
+      store: "Farmaplus",
+    }),
+  ]);
+
+  assert.equal(groups.length, 5);
+  const allNight = groups.find(({ offers }) =>
+    offers.some(({ id }) => id === "all-night"),
+  );
+  assert.deepEqual(
+    allNight.offers.map(({ id }) => id).sort(),
+    ["all-nb", "all-night"],
+  );
+  assert.equal(
+    allNight.displayName,
+    "L'Oréal Paris Panorama All Night Black 9,9 ml",
+  );
+});
+
 test("editorial display changes do not alter the legacy product key", () => {
   const raw = offer("Volume Panorama Black Waterproof");
   const canonical = normalizeProduct(raw);

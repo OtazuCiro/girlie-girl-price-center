@@ -17,9 +17,13 @@ const BRAND_ALIASES = [
   },
 ];
 
+const VARIANT_ALIASES = [
+  { from: ["all", "nb"], to: ["all", "night", "black"] },
+  { from: ["wtp"], to: ["waterproof"] },
+  { from: ["wp"], to: ["waterproof"] },
+];
+
 const TOKEN_ALIASES = new Map([
-  ["wtp", "waterproof"],
-  ["wp", "waterproof"],
   ["repuesto", "refill"],
   ["recarga", "refill"],
   ["lavable", "washable"],
@@ -53,6 +57,15 @@ const TECHNICAL_STOP_WORDS = new Set([
 ]);
 
 const PRODUCT_ALIASES = [
+  {
+    brand: "L'Oréal Paris",
+    requiredTokens: ["panorama", "all", "night", "black"],
+    forbiddenTokens: ["waterproof", "washable", "brown"],
+    canonicalTokens: ["panorama", "all", "night", "black"],
+    defaultSize: "9.9ml",
+    canonicalIdentity:
+      "L'oreal París Máscara de Pestañas L'Oréal París Panorama All Night Black",
+  },
   {
     brand: "L'Oréal Paris",
     requiredTokens: ["panorama", "black", "waterproof"],
@@ -106,6 +119,29 @@ function removePhrase(tokens, phrase) {
       result.push(tokens[index]);
       index += 1;
     }
+  }
+
+  return result;
+}
+
+function applyVariantAliases(tokens) {
+  let result = tokens;
+
+  for (const { from, to } of VARIANT_ALIASES) {
+    const expanded = [];
+    for (let index = 0; index < result.length; ) {
+      const matches = from.every(
+        (token, offset) => result[index + offset] === token,
+      );
+      if (matches) {
+        expanded.push(...to);
+        index += from.length;
+      } else {
+        expanded.push(result[index]);
+        index += 1;
+      }
+    }
+    result = expanded;
   }
 
   return result;
@@ -254,6 +290,7 @@ export function normalizeProduct(product) {
       .filter(Boolean)
       .map((token) => TOKEN_ALIASES.get(token) ?? token),
   );
+  tokens = applyVariantAliases(tokens);
   tokens = normalizeQuantityAliases(tokens);
   tokens = removeSingleItemSizePrefixes(tokens);
 
@@ -295,6 +332,10 @@ export function normalizeProduct(product) {
     ...product,
     originalName,
     originalBrand,
+    canonicalProductIdentity:
+      productAlias?.canonicalIdentity && size === productAlias.defaultSize
+        ? productAlias.canonicalIdentity
+        : null,
     normalizedName,
     displayName,
     searchTokens,
@@ -310,5 +351,9 @@ export const productCanonicalizationRules = Object.freeze({
     aliases: [...aliases],
   })),
   tokenAliases: Object.fromEntries(TOKEN_ALIASES),
+  variantAliases: VARIANT_ALIASES.map(({ from, to }) => ({
+    from: from.join(" "),
+    to: to.join(" "),
+  })),
   ignoredWords: [...TECHNICAL_STOP_WORDS],
 });
