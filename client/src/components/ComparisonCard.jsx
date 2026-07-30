@@ -41,7 +41,7 @@ function ComparisonCard({
 
       <div className="comparison-card__body">
         <p className="comparison-card__brand">{group.brand}</p>
-        <h3>{group.name}</h3>
+        <h3>{group.displayName ?? group.name}</h3>
         {availabilityMessage ? (
           <p className="favorite-availability">{availabilityMessage}</p>
         ) : (

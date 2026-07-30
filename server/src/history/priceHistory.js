@@ -116,12 +116,12 @@ export function createPriceHistoryService({
       const entries = groups.flatMap((group) =>
         group.offers.map((offer) => ({
             product: {
-              productKey: group.productKey,
+              productKey: offer.historyProductKey ?? group.productKey,
               brand: group.brand,
-              name: group.name,
+              name: group.displayName ?? group.name,
             },
             snapshot: createPriceSnapshot({
-              productKey: group.productKey,
+              productKey: offer.historyProductKey ?? group.productKey,
               offer,
               timestamp,
             }),

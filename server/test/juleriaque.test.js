@@ -18,19 +18,35 @@ const fixture = JSON.parse(
 test("parses and normalizes Juleriaque products", () => {
   const [available, soldOut] = parseJuleriaqueResponse(fixture);
 
-  assert.deepEqual(available, {
-    id: "juleriaque-15493-22951",
-    name: "Colossal Bubble Waterproof Very Black",
-    brand: "MAYBELLINE",
-    currentPrice: 35990,
-    previousPrice: 44990,
-    discountPercentage: 20,
-    imageUrl:
-      "https://juleriaque.vteximg.com.br/arquivos/ids/272174/3012201.jpg",
-    store: "Juleriaque",
-    productUrl: "https://www.juleriaque.com.ar/colossal-bubble-904882/p",
-    inStock: true,
-  });
+  assert.equal(available.id, "juleriaque-15493-22951");
+  assert.equal(
+    available.originalName,
+    "Colossal Bubble Waterproof Very Black",
+  );
+  assert.equal(
+    available.displayName,
+    "Maybelline Colossal Bubble Waterproof Very Black",
+  );
+  assert.equal(available.name, available.displayName);
+  assert.equal(available.originalBrand, "MAYBELLINE");
+  assert.equal(available.brand, "Maybelline");
+  assert.equal(
+    available.normalizedName,
+    "maybelline colossal bubble waterproof very black",
+  );
+  assert.equal(available.currentPrice, 35990);
+  assert.equal(available.previousPrice, 44990);
+  assert.equal(available.discountPercentage, 20);
+  assert.equal(
+    available.imageUrl,
+    "https://juleriaque.vteximg.com.br/arquivos/ids/272174/3012201.jpg",
+  );
+  assert.equal(available.store, "Juleriaque");
+  assert.equal(
+    available.productUrl,
+    "https://www.juleriaque.com.ar/colossal-bubble-904882/p",
+  );
+  assert.equal(available.inStock, true);
   assert.equal(typeof available.currentPrice, "number");
   assert.equal(soldOut.inStock, false);
   assert.equal(soldOut.previousPrice, null);

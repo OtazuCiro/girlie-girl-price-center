@@ -84,9 +84,11 @@ export function favoriteFromGroup(group) {
   return {
     productKey: group.productKey,
     brand: group.brand,
-    name: group.name,
+    name: group.displayName ?? group.name,
     imageUrl: group.imageUrl || "",
-    searchQuery: `${group.brand} ${group.name}`.trim().slice(0, 80),
+    searchQuery: `${group.brand} ${group.displayName ?? group.name}`
+      .trim()
+      .slice(0, 80),
     offerIds: group.offers.map((offer) => offer.id),
   };
 }

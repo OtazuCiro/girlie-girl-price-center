@@ -41,7 +41,7 @@ export async function refreshFavorites(
           if (offer?.store) {
             try {
               const historyResponse = await fetchImpl(
-                `/api/history/${encodeURIComponent(group.productKey)}?store=${encodeURIComponent(offer.store)}&limit=20`,
+                `/api/history/${encodeURIComponent(offer.historyProductKey ?? group.productKey)}?store=${encodeURIComponent(offer.store)}&limit=20`,
                 { signal },
               );
               if (historyResponse.ok) {

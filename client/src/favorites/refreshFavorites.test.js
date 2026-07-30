@@ -82,7 +82,14 @@ describe("refreshFavorites", () => {
     const refreshed = {
       ...group("product-a", "offer-a"),
       bestPriceOfferId: "offer-a",
-      offers: [{ id: "offer-a", store: "Farmacity", inStock: true }],
+      offers: [
+        {
+          id: "offer-a",
+          store: "Farmacity",
+          inStock: true,
+          historyProductKey: "product-a-legacy",
+        },
+      ],
     };
     const fetchImpl = vi.fn(async (url) => {
       if (url.startsWith("/api/search")) {
@@ -110,7 +117,7 @@ describe("refreshFavorites", () => {
       change: -1000,
     });
     expect(fetchImpl).toHaveBeenCalledWith(
-      "/api/history/product-a?store=Farmacity&limit=20",
+      "/api/history/product-a-legacy?store=Farmacity&limit=20",
       { signal: undefined },
     );
   });

@@ -120,7 +120,12 @@ describe("Girlie Girl Price Central", () => {
       brand: product.brand,
       name: product.name,
       imageUrl: product.imageUrl,
-      offers: [product],
+      offers: [
+        {
+          ...product,
+          historyProductKey: "product-history-legacy",
+        },
+      ],
       bestPriceOfferId: product.id,
       lowestPrice: product.currentPrice,
       savings: null,
@@ -168,6 +173,10 @@ describe("Girlie Girl Price Central", () => {
     expect(screen.getByRole("heading", { name: "Historial de precios" })).toBeInTheDocument();
     expect(await screen.findByText("↓ Bajó $ 2.000")).toBeInTheDocument();
     expect(screen.getByText("Buen precio")).toBeInTheDocument();
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api/history/product-history-legacy?"),
+      expect.any(Object),
+    );
     expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "← Volver" }));
     expect(screen.getByRole("searchbox")).toBeInTheDocument();

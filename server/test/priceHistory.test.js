@@ -146,3 +146,54 @@ test("keeps history calculations isolated by product and store", async () => {
   assert.equal(history.snapshots.length, 1);
   assert.equal(history.summary.latestPrice, 20000);
 });
+
+test("keeps history on the same productKey after an editorial display change", async () => {
+  const repository = createMemoryRepository();
+  const service = createPriceHistoryService({
+    repository,
+    now: () => Date.UTC(2026, 0, 1),
+  });
+
+  await service.recordGroups([
+    group({
+      name: "Nombre anterior",
+      displayName: "Nombre canónico",
+    }),
+  ]);
+  await service.recordGroups([
+    group({
+      name: "Nombre editorial nuevo",
+      displayName: "Nombre editorial nuevo",
+    }),
+  ]);
+
+  const history = await service.getHistory("product-1", "Farmacity", 20);
+  assert.equal(history.snapshots.length, 1);
+  assert.equal(history.summary.latestPrice, 20000);
+});
+
+test("uses each offer legacy history key after canonical grouping", async () => {
+  const repository = createMemoryRepository();
+  const service = createPriceHistoryService({
+    repository,
+    now: () => Date.UTC(2026, 0, 1),
+  });
+  await service.recordGroups([
+    group({
+      productKey: "product-canonical",
+      offers: [
+        offer({
+          historyProductKey: "product-legacy-store",
+        }),
+      ],
+    }),
+  ]);
+
+  assert.equal(repository.snapshots[0].productKey, "product-legacy-store");
+  const history = await service.getHistory(
+    "product-legacy-store",
+    "Farmacity",
+    20,
+  );
+  assert.equal(history.snapshots.length, 1);
+});

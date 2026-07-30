@@ -33,7 +33,7 @@ describe("favoritesStorage", () => {
     expect(restored).toEqual([favorite()]);
   });
 
-  it("avoids duplicates and supports has and remove", () => {
+  it("survives editorial display name changes without duplicating the favorite", () => {
     const storage = createFavoritesStorage(localStorage);
     storage.add(favorite());
     storage.add(favorite({ name: "Nombre actualizado" }));

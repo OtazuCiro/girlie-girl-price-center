@@ -246,6 +246,31 @@ separadas. “Mejor precio” se calcula sólo dentro de una presentación
 exacta con al menos dos tiendas, ignorando ofertas sin stock; el ahorro se
 compara contra la siguiente oferta disponible.
 
+### Calidad y canonicalización del catálogo
+
+Cada adaptador conserva `originalName` y `originalBrand` para trazabilidad y
+genera una única vez:
+
+- `normalizedName`, técnico, determinístico y apto para comparación;
+- `displayName`, breve y editorial, utilizado por cards, Favoritos y detalle;
+- `searchTokens`, internos, normalizados y sin duplicados.
+
+Las reglas son explícitas: aliases pequeños de marca (`Loreal`, `L Oreal`,
+`L'Oréal` → `L'Oréal Paris`; `Maybelline New York` → `Maybelline`), expansión
+conservadora de abreviaturas (`wtp` → `waterproof`), unidades uniformes,
+eliminación de frases concatenadas repetidas y palabras comerciales puntuales
+como `producto`, `cosmético` o `artículo`. Los títulos largos eliminan
+repeticiones comprobables; nunca se truncan con puntos suspensivos.
+
+Tamaño, cantidad, color, `waterproof`/`washable`, `refill` y tipo de
+presentación siguen siendo diferenciadores. `displayName` no participa de la
+identidad: `productKey` conserva la normalización legacy de
+`originalBrand + originalName`, por lo que una mejora editorial no mueve
+Favoritos ni snapshots históricos. Cuando varias claves legacy pasan a
+presentarse bajo un mismo nombre canónico, cada oferta conserva internamente su
+`historyProductKey`; las lecturas y escrituras continúan en la clave histórica
+de esa tienda, sin migrar ni duplicar snapshots.
+
 La caché es oportunista: puede perderse cuando Vercel recicla una función. No se
 realiza fallback silencioso a mocks. Los mocks de `client/src/data/` se conservan
 exclusivamente para tests.

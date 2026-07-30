@@ -20,7 +20,7 @@ function ProductDetail({ group, onBack }) {
 
     const controller = new AbortController();
     fetch(
-      `/api/history/${encodeURIComponent(group.productKey)}?store=${encodeURIComponent(offer.store)}&limit=20`,
+      `/api/history/${encodeURIComponent(offer.historyProductKey ?? group.productKey)}?store=${encodeURIComponent(offer.store)}&limit=20`,
       { signal: controller.signal },
     )
       .then(async (response) => {
@@ -39,7 +39,7 @@ function ProductDetail({ group, onBack }) {
       });
 
     return () => controller.abort();
-  }, [group.productKey, offer?.store]);
+  }, [group.productKey, offer?.historyProductKey, offer?.store]);
 
   return (
     <section className="product-detail" aria-labelledby="product-detail-title">
@@ -50,7 +50,7 @@ function ProductDetail({ group, onBack }) {
         <img src={group.imageUrl || "/icon-192.png"} alt="" width="160" height="160" />
         <div>
           <p className="comparison-card__brand">{group.brand}</p>
-          <h1 id="product-detail-title">{group.name}</h1>
+          <h1 id="product-detail-title">{group.displayName ?? group.name}</h1>
           {offer && <p>Historial en {offer.store}</p>}
         </div>
       </div>
