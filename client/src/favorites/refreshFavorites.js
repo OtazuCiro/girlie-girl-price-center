@@ -28,7 +28,39 @@ export async function refreshFavorites(
         const group = Array.isArray(data.groups)
           ? data.groups.find((candidate) => matchesFavorite(candidate, favorite))
           : null;
-        results[index] = { productKey: favorite.productKey, group: group ?? null };
+        let refreshedGroup = group;
+
+        if (group) {
+          const offer =
+            group.offers.find(
+              (candidate) => candidate.id === group.bestPriceOfferId,
+            ) ??
+            group.offers.find((candidate) => candidate.inStock) ??
+            group.offers[0];
+
+          if (offer?.store) {
+            try {
+              const historyResponse = await fetchImpl(
+                `/api/history/${encodeURIComponent(group.productKey)}?store=${encodeURIComponent(offer.store)}&limit=20`,
+                { signal },
+              );
+              if (historyResponse.ok) {
+                const history = await historyResponse.json();
+                refreshedGroup = {
+                  ...group,
+                  historySummary: history.summary,
+                };
+              }
+            } catch (error) {
+              if (error?.name === "AbortError") throw error;
+            }
+          }
+        }
+
+        results[index] = {
+          productKey: favorite.productKey,
+          group: refreshedGroup ?? null,
+        };
       } catch (error) {
         if (error?.name === "AbortError") throw error;
         results[index] = { productKey: favorite.productKey, group: null };

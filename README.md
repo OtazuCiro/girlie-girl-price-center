@@ -109,13 +109,39 @@ El resultado se genera en `client/dist/`.
 
 ## Variables de entorno
 
-El proyecto no necesita variables de entorno en este sprint. `.env.example`
-documenta esta situación y queda preparado para incorporar nombres de variables
-futuras sin publicar valores privados.
+La búsqueda funciona sin base de datos, pero el historial requiere PostgreSQL:
+
+- `DATABASE_URL`: conexión a la rama Neon del environment actual.
+- `PRICE_HISTORY_DATABASE_ROLE`: `preview`, `production` o `development`.
+
+Preview y Production deben usar ramas Neon distintas y variables con scope
+separado en Vercel. El rol debe coincidir con `VERCEL_ENV`; ante una
+configuración incorrecta el historial se deshabilita y la búsqueda continúa.
+No se imprimen conexiones ni errores internos en respuestas o logs.
 
 Los archivos `.env` reales están ignorados por Git. Cuando se agreguen variables,
 se deberán configurar también desde **Vercel → Project Settings → Environment
 Variables**.
+
+## Migraciones de historial
+
+Las migraciones versionadas viven en `server/migrations/`. Son repetibles:
+`schema_migrations` registra versión y checksum, omite las ya aplicadas y detiene
+la ejecución si un archivo aplicado fue alterado.
+
+Para una rama Preview:
+
+```bash
+VERCEL_ENV=preview \
+PRICE_HISTORY_DATABASE_ROLE=preview \
+MIGRATION_TARGET=preview \
+DATABASE_URL="..." \
+npm run migrate
+```
+
+Production requiere sus propias credenciales, `MIGRATION_TARGET=production` y
+la confirmación explícita `ALLOW_PRODUCTION_MIGRATIONS=true`. Nunca reutilizar
+la URL de Production en Preview.
 
 ## Publicar el repositorio en GitHub
 
@@ -241,6 +267,25 @@ dispositivo. No se sincronizan con otros dispositivos o navegadores y pueden
 perderse si Safari elimina los datos del sitio o la usuaria los borra. Una
 implementación server-side futura puede reemplazar la capa de almacenamiento sin
 cambiar los componentes de la interfaz.
+
+## Historial de precios
+
+v1.3 registra snapshots únicamente cuando una persona realiza una búsqueda real.
+No existen cron, crawling periódico, alertas ni notificaciones. Una falla de
+persistencia nunca convierte una búsqueda válida en error.
+
+Cada snapshot pertenece a `productKey + store` y guarda fecha, precio actual,
+precio anterior, descuento y stock. Una tabla de estado actual con clave única
+permite que un UPSERT transaccional descarte estados consecutivos idénticos,
+incluido el primer snapshot bajo concurrencia. Los nombres, marcas, URLs y
+ofertas se normalizan en tablas separadas; no se duplican imágenes, HTML ni
+respuestas de los catálogos.
+
+`GET /api/history/:productKey?store=<tienda>&limit=<n>` devuelve como máximo 50
+snapshots. La tendencia compara los dos últimos de la misma tienda. Mínimo,
+máximo y promedio consideran precios con stock. “Buen precio” requiere al menos
+5 snapshots con stock distribuidos en 7 días y un precio actual inferior al
+promedio menos una desviación estándar.
 
 ## Compartir y privacidad
 

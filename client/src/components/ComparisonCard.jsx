@@ -1,3 +1,5 @@
+import PriceHistorySummary from "./PriceHistorySummary.jsx";
+
 function formatPrice(value) {
   return new Intl.NumberFormat("es-AR", {
     style: "currency",
@@ -11,6 +13,8 @@ function ComparisonCard({
   isFavorite = false,
   onToggleFavorite,
   availabilityMessage,
+  onViewDetails,
+  historySummary,
 }) {
   return (
     <article className={`comparison-card ${!group.inStock ? "comparison-card--sold-out" : ""}`}>
@@ -55,6 +59,10 @@ function ComparisonCard({
           </p>
         )}
 
+        {historySummary && (
+          <PriceHistorySummary summary={historySummary} compact />
+        )}
+
         <div className="offer-list">
           {group.offers.map((offer) => {
             const isBest =
@@ -90,6 +98,11 @@ function ComparisonCard({
           })}
         </div>
 
+        {onViewDetails && group.offers.length > 0 && (
+          <button className="detail-link" type="button" onClick={onViewDetails}>
+            Ver detalle e historial
+          </button>
+        )}
       </div>
     </article>
   );
