@@ -639,4 +639,148 @@ describe("Girlie Girl Price Central", () => {
       }),
     ).toBeInTheDocument();
   });
+
+  it("shows a refreshed Farmaplus offer instead of an unavailable favorite", async () => {
+    const currentGroup = {
+      id: "revlon-current",
+      productKey: "revlon-current-key",
+      brand: "Revlon",
+      name: "Colorstay Skin Awaken 5 In 1 Concealer Corrector 015 Light 8 ml",
+      displayName:
+        "Revlon Colorstay Skin Awaken 5 In 1 Concealer Corrector 015 Light 8 ml",
+      imageUrl: "",
+      offers: [
+        {
+          id: "farmaplus-current",
+          store: "Farmaplus",
+          currentPrice: 10428,
+          productUrl: "https://example.com/revlon",
+          inStock: true,
+        },
+      ],
+      bestPriceOfferId: "farmaplus-current",
+      lowestPrice: 10428,
+      savings: null,
+      inStock: true,
+    };
+    favoritesStorage.add({
+      productKey: "revlon-legacy-key",
+      brand: "Revlon",
+      name: "Revlon Colorstay Skin Awaken 5 In 1 Concealer Corrector 015 Light 8 ml",
+      imageUrl: "",
+      searchQuery: "Revlon Colorstay Skin Awaken Concealer 015 Light 8 ml",
+      offerIds: ["farmaplus-legacy"],
+    });
+    global.fetch.mockImplementation(async (url) => {
+      if (url === "/api/health") {
+        return { ok: true, json: async () => ({ status: "ok" }) };
+      }
+      if (url.startsWith("/api/beauty-radar")) {
+        return {
+          ok: true,
+          json: async () => ({
+            recentDrops: [],
+            newHistoricalLows: [],
+            favoriteChanges: [],
+          }),
+        };
+      }
+      if (url.startsWith("/api/history")) {
+        return { ok: false, json: async () => ({}) };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          groups: [currentGroup],
+          results: currentGroup.offers,
+          sources: [
+            { store: "Farmaplus", status: "ok" },
+            { store: "Juleriaque", status: "error" },
+          ],
+        }),
+      };
+    });
+
+    render(<App />);
+    await userEvent.click(screen.getByRole("button", { name: "Favoritos" }));
+
+    expect(await screen.findByText("Farmaplus")).toBeInTheDocument();
+    expect(screen.getByText("$ 10.428")).toBeInTheDocument();
+    expect(screen.queryByText("Sin ofertas disponibles en este momento")).not.toBeInTheDocument();
+  });
+
+  it("keeps an offer found by detail when returning to Favoritos", async () => {
+    const currentGroup = {
+      id: "revlon-current",
+      productKey: "revlon-current-key",
+      brand: "Revlon",
+      name: "Colorstay Skin Awaken 5 In 1 Concealer Corrector 015 Light 8 ml",
+      displayName:
+        "Revlon Colorstay Skin Awaken 5 In 1 Concealer Corrector 015 Light 8 ml",
+      imageUrl: "",
+      offers: [
+        {
+          id: "farmaplus-current",
+          store: "Farmaplus",
+          currentPrice: 10428,
+          productUrl: "https://example.com/revlon",
+          inStock: true,
+        },
+      ],
+      bestPriceOfferId: "farmaplus-current",
+      lowestPrice: 10428,
+      savings: null,
+      inStock: true,
+    };
+    favoritesStorage.add({
+      productKey: "revlon-legacy-key",
+      brand: "Revlon",
+      name: currentGroup.displayName,
+      imageUrl: "",
+      searchQuery: currentGroup.displayName,
+      offerIds: ["farmaplus-legacy"],
+    });
+    global.fetch.mockImplementation(async (url) => {
+      if (url === "/api/health") {
+        return { ok: true, json: async () => ({ status: "ok" }) };
+      }
+      if (url.startsWith("/api/beauty-radar")) {
+        return {
+          ok: true,
+          json: async () => ({
+            recentDrops: [],
+            newHistoricalLows: [],
+            favoriteChanges: [],
+          }),
+        };
+      }
+      if (url.startsWith("/api/history")) {
+        return { ok: false, json: async () => ({}) };
+      }
+      if (url === "/api/search?q=revlon") {
+        return {
+          ok: true,
+          json: async () => ({
+            groups: [currentGroup],
+            results: currentGroup.offers,
+            sources: [{ store: "Farmaplus", status: "ok" }],
+          }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({ groups: [], results: [], sources: [] }),
+      };
+    });
+
+    render(<App />);
+    await searchFor("revlon");
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Ver detalle e historial" }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Favoritos" }));
+
+    expect(screen.getByText("Farmaplus")).toBeInTheDocument();
+    expect(screen.queryByText("Sin ofertas disponibles en este momento")).not.toBeInTheDocument();
+  });
 });

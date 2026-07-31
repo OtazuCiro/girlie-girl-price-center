@@ -1,3 +1,5 @@
+import { buildProductSearchQuery } from "../products/currentProduct.js";
+
 export const FAVORITES_STORAGE_KEY = "girlieGirl:favorites:v1";
 
 function resolveStorage(storage) {
@@ -86,9 +88,7 @@ export function favoriteFromGroup(group) {
     brand: group.brand,
     name: group.displayName ?? group.name,
     imageUrl: group.imageUrl || "",
-    searchQuery: `${group.brand} ${group.displayName ?? group.name}`
-      .trim()
-      .slice(0, 80),
+    searchQuery: buildProductSearchQuery(group),
     offerIds: group.offers.map((offer) => offer.id),
   };
 }

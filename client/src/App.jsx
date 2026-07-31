@@ -7,6 +7,10 @@ import FavoritesPage from "./pages/FavoritesPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import RadarPage from "./pages/RadarPage.jsx";
 import SearchPage from "./pages/SearchPage.jsx";
+import {
+  mergeFavoriteUpdates,
+  resolveFavoriteGroup,
+} from "./products/currentProduct.js";
 import { shareGirlieGirl } from "./utils/shareGirlieGirl.js";
 
 function ShareIcon() {
@@ -34,6 +38,7 @@ function App() {
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [radarState, setRadarState] = useState({ status: "loading", data: null });
   const searchRun = useRef(0);
+  const favoriteRefreshRun = useRef(0);
   const shareFeedbackTimeout = useRef(null);
 
   useEffect(() => {
@@ -98,23 +103,31 @@ function App() {
   useEffect(() => {
     if (activeTab !== "favorites" || !favorites.length) return undefined;
     const controller = new AbortController();
+    const currentRun = ++favoriteRefreshRun.current;
     const favoritesToRefresh = favorites;
-    setFavoriteUpdates({});
     refreshFavorites(favoritesToRefresh, { signal: controller.signal })
       .then((updates) => {
-        if (!controller.signal.aborted) {
-          setFavoriteUpdates(
-            Object.fromEntries(
-              updates.map(({ productKey, group }) => [productKey, group]),
-            ),
+        if (
+          !controller.signal.aborted &&
+          currentRun === favoriteRefreshRun.current
+        ) {
+          setFavoriteUpdates((current) =>
+            mergeFavoriteUpdates(current, updates),
           );
         }
       })
       .catch((error) => {
-        if (error?.name !== "AbortError") {
-          setFavoriteUpdates(
-            Object.fromEntries(
-              favoritesToRefresh.map((favorite) => [favorite.productKey, null]),
+        if (
+          error?.name !== "AbortError" &&
+          currentRun === favoriteRefreshRun.current
+        ) {
+          setFavoriteUpdates((current) =>
+            mergeFavoriteUpdates(
+              current,
+              favoritesToRefresh.map((favorite) => ({
+                productKey: favorite.productKey,
+                group: null,
+              })),
             ),
           );
         }
@@ -149,6 +162,15 @@ function App() {
       setGroups(data.groups);
       setSources(Array.isArray(data.sources) ? data.sources : []);
       setViewState(data.groups.length ? "results" : "empty");
+      const favoriteMatches = favorites.flatMap((favorite) => {
+        const group = resolveFavoriteGroup(data.groups, favorite);
+        return group ? [{ productKey: favorite.productKey, group }] : [];
+      });
+      if (favoriteMatches.length) {
+        setFavoriteUpdates((current) =>
+          mergeFavoriteUpdates(current, favoriteMatches),
+        );
+      }
     } catch {
       if (currentRun === searchRun.current) setViewState("error");
     }
@@ -163,10 +185,21 @@ function App() {
     const isStored = favorites.some(
       (favorite) => favorite.productKey === storedProductKey,
     );
-    setFavorites(
-      isStored
-        ? favoritesStorage.remove(storedProductKey)
-        : favoritesStorage.add(favoriteFromGroup(group)),
+    if (isStored) {
+      setFavorites(favoritesStorage.remove(storedProductKey));
+      setFavoriteUpdates((current) => {
+        const next = { ...current };
+        delete next[storedProductKey];
+        return next;
+      });
+      return;
+    }
+
+    setFavorites(favoritesStorage.add(favoriteFromGroup(group)));
+    setFavoriteUpdates((current) =>
+      mergeFavoriteUpdates(current, [
+        { productKey: storedProductKey, group },
+      ]),
     );
   }
 
@@ -176,6 +209,16 @@ function App() {
   }
 
   function showDetail(group) {
+    const favoriteMatches = favorites.flatMap((favorite) =>
+      resolveFavoriteGroup([group], favorite)
+        ? [{ productKey: favorite.productKey, group }]
+        : [],
+    );
+    if (favoriteMatches.length) {
+      setFavoriteUpdates((current) =>
+        mergeFavoriteUpdates(current, favoriteMatches),
+      );
+    }
     setSelectedGroup(group);
     setActiveTab("search");
   }
