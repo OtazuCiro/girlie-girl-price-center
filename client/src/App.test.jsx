@@ -112,6 +112,76 @@ describe("Girlie Girl Price Central", () => {
     expect(screen.queryByText("Mejor precio")).not.toBeInTheDocument();
   });
 
+  it("opens a minimal product detail and renders price history", async () => {
+    const product = filterProducts("skincare")[0];
+    const group = {
+      id: "history-product",
+      productKey: "product-history",
+      brand: product.brand,
+      name: product.name,
+      imageUrl: product.imageUrl,
+      offers: [
+        {
+          ...product,
+          historyProductKey: "product-history-legacy",
+        },
+      ],
+      bestPriceOfferId: product.id,
+      lowestPrice: product.currentPrice,
+      savings: null,
+      inStock: true,
+    };
+    global.fetch.mockImplementation(async (url) => {
+      if (url === "/api/health") {
+        return { ok: true, json: async () => ({ status: "ok" }) };
+      }
+      if (url.startsWith("/api/history/")) {
+        return {
+          ok: true,
+          json: async () => ({
+            summary: {
+              latestPrice: 18000,
+              previousPrice: 20000,
+              change: -2000,
+              trend: "down",
+              minimum: 18000,
+              maximum: 22000,
+              average: 20000,
+              goodPrice: true,
+              snapshotCount: 5,
+            },
+            snapshots: [],
+          }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          results: [product],
+          groups: [group],
+          sources: [],
+        }),
+      };
+    });
+
+    render(<App />);
+    await searchFor("skincare");
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Ver detalle e historial" }),
+    );
+
+    expect(screen.getByRole("heading", { name: "Historial de precios" })).toBeInTheDocument();
+    expect(await screen.findByText("↓ Bajó $ 2.000")).toBeInTheDocument();
+    expect(screen.getByText("Buen precio")).toBeInTheDocument();
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api/history/product-history-legacy?"),
+      expect.any(Object),
+    );
+    expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "← Volver" }));
+    expect(screen.getByRole("searchbox")).toBeInTheDocument();
+  });
+
   it("shows stock status from the API response", async () => {
     mockSearchApi();
     render(<App />);

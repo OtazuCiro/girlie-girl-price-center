@@ -100,3 +100,36 @@ test("returns a controlled error only when every store fails", async () => {
       error.status === 502,
   );
 });
+
+test("history persistence failures never fail a valid search", async () => {
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  const service = createProductSearchService({
+    stores: [
+      store("Tienda", async () => [
+        {
+          id: "offer",
+          name: "Producto",
+          brand: "Marca",
+          store: "Tienda",
+          inStock: true,
+          currentPrice: 100,
+          productUrl: "https://example.com/product",
+        },
+      ]),
+    ],
+    historyService: {
+      enabled: true,
+      async recordGroups() {
+        throw new Error("database unavailable");
+      },
+    },
+  });
+
+  try {
+    const response = await service.search("producto");
+    assert.equal(response.groups.length, 1);
+  } finally {
+    console.error = originalConsoleError;
+  }
+});

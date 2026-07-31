@@ -40,7 +40,16 @@ for (const [name, createStore, origin] of [
     assert.match(requestedUrl, /search\/sky%20high/);
     assert.equal(product.store, name);
     assert.equal(product.brand, "Maybelline");
-    assert.equal(product.name, "Máscara Sky High Waterproof 7,2 ml");
+    assert.equal(product.originalName, "Máscara Sky High Waterproof 7,2 ml");
+    assert.equal(
+      product.displayName,
+      "Maybelline Máscara Sky High Waterproof 7,2 ml",
+    );
+    assert.equal(product.name, product.displayName);
+    assert.equal(
+      product.normalizedName,
+      "maybelline mascara sky high waterproof 7.2 ml",
+    );
     assert.equal(product.currentPrice, 15000);
     assert.equal(product.previousPrice, 20000);
     assert.equal(product.discountPercentage, 25);

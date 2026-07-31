@@ -1,3 +1,8 @@
+import {
+  normalizeComparisonText,
+  normalizeProduct,
+} from "./productCanonicalization.js";
+
 const STOP_WORDS = new Set([
   "de",
   "del",
@@ -18,6 +23,8 @@ const STOP_WORDS = new Set([
 const VARIANT_TERMS = new Map([
   ["waterproof", /\b(waterproof|resistente al agua)\b/],
   ["washable", /\b(washable|lavable)\b/],
+  ["black", /\bblack\b/],
+  ["brown", /\bbrown\b/],
   ["refill", /\b(refill|repuesto|recarga)\b/],
   ["mini", /\b(mini|travel size)\b/],
 ]);
@@ -34,7 +41,13 @@ const KNOWN_URL_BRANDS = [
 ];
 
 export function normalizeProductText(value = "") {
-  return value
+  return normalizeComparisonText(value);
+}
+
+// Compatibilidad: productKey y la selección del representante conservan
+// exactamente la normalización utilizada hasta v1.3.
+function normalizeLegacyIdentityText(value = "") {
+  return String(value)
     .normalize("NFD")
     .replace(/\p{Diacritic}/gu, "")
     .toLocaleLowerCase("es")
@@ -89,7 +102,7 @@ function describePresentation(name) {
 
 function describe(product) {
   const brand = normalizeProductText(product.brand);
-  const name = normalizeProductText(product.name);
+  const name = product.normalizedName || normalizeProductText(product.name);
   const normalizedUrl = normalizeProductText(product.productUrl);
   const comparisonText = `${name} ${normalizedUrl}`;
   const compactBrand = brand.replaceAll(" ", "");
@@ -137,7 +150,17 @@ function hashIdentity(value) {
 }
 
 export function createProductKey(product) {
-  const identity = normalizeProductText(`${product.brand} ${product.name}`);
+  const identity = normalizeLegacyIdentityText(
+    product.canonicalProductIdentity ??
+      `${product.originalBrand ?? product.brand} ${product.originalName ?? product.name}`,
+  );
+  return `product-${hashIdentity(identity)}`;
+}
+
+function createHistoryProductKey(product) {
+  const identity = normalizeLegacyIdentityText(
+    `${product.originalBrand ?? product.brand} ${product.originalName ?? product.name}`,
+  );
   return `product-${hashIdentity(identity)}`;
 }
 
@@ -171,20 +194,31 @@ function buildGroup(offers, index) {
     .filter((offer) => offer.inStock)
     .sort((a, b) => a.currentPrice - b.currentPrice);
   const representative = [...offers].sort((left, right) => {
-    const leftIdentity = normalizeProductText(`${left.brand} ${left.name}`);
-    const rightIdentity = normalizeProductText(`${right.brand} ${right.name}`);
+    const leftIdentity = normalizeLegacyIdentityText(
+      `${left.originalBrand ?? left.brand} ${left.originalName ?? left.name}`,
+    );
+    const rightIdentity = normalizeLegacyIdentityText(
+      `${right.originalBrand ?? right.brand} ${right.originalName ?? right.name}`,
+    );
     return leftIdentity.localeCompare(rightIdentity, "es") || left.id.localeCompare(right.id);
   })[0];
   const best = available[0] ?? null;
   const nextBest = available[1] ?? null;
+  const offersWithHistoryIdentity = offers.map((offer) => ({
+    ...offer,
+    historyProductKey: createHistoryProductKey(offer),
+  }));
 
   return {
     id: `comparison-${index}-${representative.id}`,
     productKey: createProductKey(representative),
     brand: representative.brand,
-    name: representative.name,
+    name: representative.displayName ?? representative.name,
+    displayName: representative.displayName ?? representative.name,
+    normalizedName: representative.normalizedName,
+    originalName: representative.originalName ?? representative.name,
     imageUrl: representative.imageUrl,
-    offers: [...offers].sort((a, b) => {
+    offers: offersWithHistoryIdentity.sort((a, b) => {
       if (a.inStock !== b.inStock) return a.inStock ? -1 : 1;
       return a.currentPrice - b.currentPrice;
     }),
@@ -201,7 +235,8 @@ function buildGroup(offers, index) {
 export function groupEquivalentProducts(products) {
   const pendingGroups = [];
 
-  for (const product of products) {
+  for (const rawProduct of products) {
+    const product = normalizeProduct(rawProduct);
     const match = pendingGroups.find(
       (offers) =>
         !offers.some((offer) => offer.store === product.store) &&

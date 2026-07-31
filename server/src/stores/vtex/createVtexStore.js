@@ -1,3 +1,5 @@
+import { normalizeProduct } from "../../services/productCanonicalization.js";
+
 const SEARCH_LIMIT = 20;
 const DEFAULT_TIMEOUT_MS = 8000;
 const USER_AGENT =
@@ -67,7 +69,7 @@ export function normalizeVtexProduct(product, storeName) {
 
   if (!validHttpUrl(product.link)) return null;
 
-  return {
+  return normalizeProduct({
     id: `${storeName.toLocaleLowerCase("es")}-${product.productId}-${selected.item.itemId}`,
     name:
       selected.item.nameComplete ||
@@ -81,7 +83,7 @@ export function normalizeVtexProduct(product, storeName) {
     store: storeName,
     productUrl: product.link,
     inStock: selected.available,
-  };
+  });
 }
 
 export function parseVtexResponse(payload, storeName) {

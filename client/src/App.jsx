@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import ComparisonCard from "./components/ComparisonCard.jsx";
+import ProductDetail from "./components/ProductDetail.jsx";
 import {
   favoriteFromGroup,
   favoritesStorage,
@@ -41,6 +42,7 @@ function App() {
   const [favorites, setFavorites] = useState(() => favoritesStorage.getAll());
   const [favoriteUpdates, setFavoriteUpdates] = useState({});
   const [shareFeedback, setShareFeedback] = useState("");
+  const [selectedGroup, setSelectedGroup] = useState(null);
   const searchRun = useRef(0);
   const shareFeedbackTimeout = useRef(null);
 
@@ -147,7 +149,13 @@ function App() {
   }
 
   function showSearch() {
+    setSelectedGroup(null);
     setActiveView("search");
+  }
+
+  function showDetail(group) {
+    setSelectedGroup(group);
+    setActiveView("detail");
   }
 
   async function handleShare() {
@@ -301,6 +309,7 @@ function App() {
                       (favorite) => favorite.productKey === group.productKey,
                     )}
                     onToggleFavorite={() => toggleFavorite(group)}
+                    onViewDetails={() => showDetail(group)}
                   />
                 ))}
               </div>
@@ -372,12 +381,20 @@ function App() {
                             ? "Sin ofertas disponibles en este momento"
                             : "Actualizando ofertas…"
                       }
+                      historySummary={updatedGroup?.historySummary}
+                      onViewDetails={
+                        updatedGroup ? () => showDetail(updatedGroup) : undefined
+                      }
                     />
                   );
                 })}
               </div>
             )}
           </section>
+        )}
+
+        {activeView === "detail" && selectedGroup && (
+          <ProductDetail group={selectedGroup} onBack={showSearch} />
         )}
       </main>
 

@@ -4,6 +4,7 @@ import { farmaplusStore } from "../stores/farmaplus/search.js";
 import { juleriaqueStore } from "../stores/juleriaque/search.js";
 import { pigmentoStore } from "../stores/pigmento/search.js";
 import { simplicityStore } from "../stores/simplicity/search.js";
+import { defaultPriceHistoryService } from "../history/defaultPriceHistoryService.js";
 import {
   groupEquivalentProducts,
   normalizeProductText,
@@ -35,6 +36,7 @@ export function createProductSearchService({
   ],
   ttlMs = DEFAULT_CACHE_TTL_MS,
   now = Date.now,
+  historyService = defaultPriceHistoryService,
 } = {}) {
   const cache = new Map();
 
@@ -82,6 +84,14 @@ export function createProductSearchService({
       }
 
       const groups = groupEquivalentProducts(results);
+
+      if (historyService?.enabled) {
+        try {
+          await historyService.recordGroups(groups);
+        } catch {
+          console.error("[price-history]", { code: "SNAPSHOT_WRITE_FAILED" });
+        }
+      }
 
       return {
         results,

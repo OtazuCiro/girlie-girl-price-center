@@ -78,4 +78,48 @@ describe("refreshFavorites", () => {
     expect(maximum).toBeLessThanOrEqual(3);
   });
 
+  it("adds the current store trend to a refreshed favorite", async () => {
+    const refreshed = {
+      ...group("product-a", "offer-a"),
+      bestPriceOfferId: "offer-a",
+      offers: [
+        {
+          id: "offer-a",
+          store: "Farmacity",
+          inStock: true,
+          historyProductKey: "product-a-legacy",
+        },
+      ],
+    };
+    const fetchImpl = vi.fn(async (url) => {
+      if (url.startsWith("/api/search")) {
+        return {
+          ok: true,
+          json: async () => ({ groups: [refreshed] }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          summary: { latestPrice: 10000, trend: "down", change: -1000 },
+        }),
+      };
+    });
+
+    const [result] = await refreshFavorites(
+      [favorite("product-a", "offer-a")],
+      { fetchImpl },
+    );
+
+    expect(result.group.historySummary).toEqual({
+      latestPrice: 10000,
+      trend: "down",
+      change: -1000,
+    });
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "/api/history/product-a-legacy?store=Farmacity&limit=20",
+      { signal: undefined },
+    );
+  });
+
 });
