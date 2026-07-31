@@ -113,7 +113,7 @@ describe("Girlie Girl Price Central", () => {
 
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole("button", { name: "Radar" }));
+    await user.click(screen.getByRole("button", { name: "Novedades" }));
 
     expect(await screen.findByText("Máscara que bajó")).toBeInTheDocument();
     expect(screen.getByText("Sérum en mínimo")).toBeInTheDocument();
@@ -159,7 +159,7 @@ describe("Girlie Girl Price Central", () => {
 
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole("button", { name: "Radar" }));
+    await user.click(screen.getByRole("button", { name: "Novedades" }));
 
     expect(await screen.findByText("Favorito con cambio")).toBeInTheDocument();
     expect(global.fetch).toHaveBeenCalledWith(
@@ -182,7 +182,7 @@ describe("Girlie Girl Price Central", () => {
 
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole("button", { name: "Radar" }));
+    await user.click(screen.getByRole("button", { name: "Novedades" }));
 
     expect(await screen.findByText("No hubo cambios recientes.")).toBeInTheDocument();
     expect(
@@ -595,9 +595,9 @@ describe("Girlie Girl Price Central", () => {
       "page",
     );
 
-    await user.click(within(navigation).getByRole("button", { name: "Radar" }));
+    await user.click(within(navigation).getByRole("button", { name: "Novedades" }));
     expect(screen.getByRole("heading", { name: "✨ Beauty Radar" })).toBeInTheDocument();
-    expect(within(navigation).getByRole("button", { name: "Radar" })).toHaveAttribute(
+    expect(within(navigation).getByRole("button", { name: "Novedades" })).toHaveAttribute(
       "aria-current",
       "page",
     );
@@ -613,7 +613,7 @@ describe("Girlie Girl Price Central", () => {
     await searchFor("sky high");
 
     expect(await screen.findByText("Para “sky high”")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Radar" }));
+    await user.click(screen.getByRole("button", { name: "Novedades" }));
     await user.click(screen.getByRole("button", { name: "Favoritos" }));
     await user.click(screen.getByRole("button", { name: "Ir a Buscar" }));
 
@@ -624,7 +624,7 @@ describe("Girlie Girl Price Central", () => {
   it("returns to Inicio when the logo is activated", async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole("button", { name: "Radar" }));
+    await user.click(screen.getByRole("button", { name: "Novedades" }));
     await user.click(
       screen.getByRole("link", { name: "Girlie Girl Price Central, inicio" }),
     );

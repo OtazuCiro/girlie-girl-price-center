@@ -1,7 +1,7 @@
 const ITEMS = [
   { id: "home", icon: "⌂", label: "Inicio" },
   { id: "search", icon: "⌕", label: "Buscar" },
-  { id: "radar", icon: "✦", label: "Radar" },
+  { id: "radar", icon: "✦", label: "Novedades" },
   { id: "favorites", icon: "♡", label: "Favoritos" },
 ];
 
