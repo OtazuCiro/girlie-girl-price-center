@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 
 import app from "../src/app.js";
+import vercelBeautyRadarHandler from "../../api/beauty-radar.js";
 import vercelHealthHandler from "../../api/health.js";
 import vercelHistoryHandler from "../../api/history/[productKey].js";
 import vercelSearchHandler from "../../api/search.js";
@@ -34,6 +35,7 @@ test("GET /api/health responds with an ok status", async () => {
 
 test("the Vercel entry points export the same Express app", () => {
   assert.equal(vercelHealthHandler, app);
+  assert.equal(vercelBeautyRadarHandler, app);
   assert.equal(vercelHistoryHandler, app);
   assert.equal(vercelSearchHandler, app);
 });

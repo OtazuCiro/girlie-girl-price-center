@@ -67,6 +67,117 @@ describe("Girlie Girl Price Central", () => {
     expect(
       screen.getByRole("button", { name: "Compartir Girlie Girl" }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "✨ Beauty Radar" })).toBeInTheDocument();
+  });
+
+  it("renders Beauty Radar sections from the aggregated endpoint", async () => {
+    global.fetch.mockImplementation(async (url) => {
+      if (url === "/api/health") {
+        return { ok: true, json: async () => ({ status: "ok" }) };
+      }
+      if (url.startsWith("/api/beauty-radar")) {
+        return {
+          ok: true,
+          json: async () => ({
+            recentDrops: [
+              {
+                productKey: "drop-1",
+                name: "Máscara que bajó",
+                store: "Farmacity",
+                currentPrice: 9000,
+                difference: -1000,
+                trend: "down",
+              },
+            ],
+            newHistoricalLows: [
+              {
+                productKey: "low-1",
+                name: "Sérum en mínimo",
+                store: "Juleriaque",
+                currentPrice: 12000,
+                difference: -2000,
+                trend: "down",
+              },
+            ],
+            favoriteChanges: [],
+          }),
+        };
+      }
+      throw new Error(`Unexpected URL ${url}`);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText("Máscara que bajó")).toBeInTheDocument();
+    expect(screen.getByText("Sérum en mínimo")).toBeInTheDocument();
+    expect(
+      screen.getByText("Guardá favoritos para seguir sus cambios."),
+    ).toBeInTheDocument();
+  });
+
+  it("requests and renders only changes for stored favorites", async () => {
+    favoritesStorage.add({
+      productKey: "favorite-key",
+      brand: "Marca",
+      name: "Favorito",
+      imageUrl: "",
+      searchQuery: "Marca Favorito",
+      offerIds: ["offer-favorite"],
+    });
+    global.fetch.mockImplementation(async (url) => {
+      if (url === "/api/health") {
+        return { ok: true, json: async () => ({ status: "ok" }) };
+      }
+      if (url.startsWith("/api/beauty-radar")) {
+        return {
+          ok: true,
+          json: async () => ({
+            recentDrops: [],
+            newHistoricalLows: [],
+            favoriteChanges: [
+              {
+                productKey: "history-key",
+                name: "Favorito con cambio",
+                store: "Farmacity",
+                currentPrice: 10500,
+                difference: 500,
+                trend: "up",
+              },
+            ],
+          }),
+        };
+      }
+      throw new Error(`Unexpected URL ${url}`);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText("Favorito con cambio")).toBeInTheDocument();
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("favoriteOfferIds=offer-favorite"),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("favoriteProductKeys=favorite-key"),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+  });
+
+  it("shows gentle empty states when radar data is unavailable", async () => {
+    global.fetch.mockImplementation(async (url) => {
+      if (url === "/api/health") {
+        return { ok: true, json: async () => ({ status: "ok" }) };
+      }
+      throw new Error("Unavailable");
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText("No hubo cambios recientes.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Aún estamos construyendo el historial."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("shows clipboard feedback when native sharing is unavailable", async () => {
