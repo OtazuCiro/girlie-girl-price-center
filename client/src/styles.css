@@ -26,8 +26,8 @@
 }
 
 * { box-sizing: border-box; }
-html { min-width: 320px; background: var(--color-background); }
-body { margin: 0; min-width: 320px; min-height: 100vh; }
+html { min-width: 0; background: var(--color-background); }
+body { margin: 0; min-width: 0; min-height: 100vh; }
 button, input, select { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
 button { cursor: pointer; }
@@ -91,10 +91,11 @@ button { cursor: pointer; }
 .page--radar { padding-top: clamp(2rem, 7vw, 4rem); }
 .page--radar .beauty-radar { border-top: 0; }
 .search-history-placeholder { margin: 0.75rem 0 0; color: var(--color-text-secondary); font-size: 0.72rem; }
-.home-summary, .home-favorites { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin: 0 auto 1rem; padding: 1.15rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.home-summary, .home-favorites { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin: 0 auto 1rem; padding: 1.15rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.home-summary > div, .home-favorites > div { flex: 1 1 12rem; min-width: 0; max-width: 100%; }
 .home-summary h2, .home-favorites h2 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(1.25rem, 5vw, 1.65rem); font-weight: 400; }
 .home-summary .eyebrow, .home-favorites .eyebrow { margin-bottom: 0.35rem; }
-.home-summary button, .home-favorites button { flex: 0 0 auto; min-height: 2.75rem; padding: 0.55rem 0.75rem; color: var(--color-primary-pressed); background: var(--color-primary-soft); border: 0; border-radius: 0.75rem; font-size: 0.75rem; font-weight: 750; }
+.home-summary button, .home-favorites button { flex: 0 1 auto; max-width: 100%; min-height: 2.75rem; padding: 0.55rem 0.75rem; color: var(--color-primary-pressed); background: var(--color-primary-soft); border: 0; border-radius: 0.75rem; font-size: 0.75rem; font-weight: 750; white-space: normal; }
 .home-favorites p:last-child { max-width: 34rem; margin: 0.45rem 0 0; overflow: hidden; color: var(--color-text-secondary); font-size: 0.75rem; text-overflow: ellipsis; white-space: nowrap; }
 @keyframes page-in { from { opacity: 0; transform: translateY(0.25rem); } to { opacity: 1; transform: translateY(0); } }
 .radar-heading { margin-bottom: 1rem; }
@@ -226,6 +227,10 @@ footer span { text-align: right; }
   .site-header { min-height: 4rem; }
   .home-summary, .home-favorites { align-items: flex-start; }
   .home-summary button, .home-favorites button { padding-inline: 0.6rem; }
+}
+
+@media (max-width: 340px) {
+  .home-summary button, .home-favorites button { width: 100%; }
 }
 
 @media (min-width: 640px) {
