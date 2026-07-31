@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
+import BeautyRadar from "./components/BeautyRadar.jsx";
 import ComparisonCard from "./components/ComparisonCard.jsx";
 import ProductDetail from "./components/ProductDetail.jsx";
 import {
@@ -43,6 +44,10 @@ function App() {
   const [favoriteUpdates, setFavoriteUpdates] = useState({});
   const [shareFeedback, setShareFeedback] = useState("");
   const [selectedGroup, setSelectedGroup] = useState(null);
+  const [radarState, setRadarState] = useState({
+    status: "loading",
+    data: null,
+  });
   const searchRun = useRef(0);
   const shareFeedbackTimeout = useRef(null);
 
@@ -64,6 +69,56 @@ function App() {
     checkBackend();
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const parameters = new URLSearchParams();
+    const offerIds = [
+      ...new Set(favorites.flatMap((favorite) => favorite.offerIds ?? [])),
+    ].slice(0, 40);
+    const productKeys = favorites
+      .map((favorite) => favorite.productKey)
+      .slice(0, 40);
+    if (offerIds.length) parameters.set("favoriteOfferIds", offerIds.join(","));
+    if (productKeys.length) {
+      parameters.set("favoriteProductKeys", productKeys.join(","));
+    }
+    const queryString = parameters.toString();
+    setRadarState((current) => ({
+      status: "loading",
+      data: current.data,
+    }));
+
+    fetch(`/api/beauty-radar${queryString ? `?${queryString}` : ""}`, {
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Beauty Radar unavailable");
+        const data = await response.json();
+        if (
+          !Array.isArray(data.recentDrops) ||
+          !Array.isArray(data.newHistoricalLows) ||
+          !Array.isArray(data.favoriteChanges)
+        ) {
+          throw new Error("Invalid Beauty Radar response");
+        }
+        setRadarState({ status: "ready", data });
+      })
+      .catch((error) => {
+        if (error.name !== "AbortError") {
+          setRadarState({
+            status: "ready",
+            data: {
+              recentDrops: [],
+              newHistoricalLows: [],
+              favoriteChanges: [],
+            },
+          });
+        }
+      });
+
+    return () => controller.abort();
+  }, [favorites]);
 
   useEffect(
     () => () => {
@@ -264,6 +319,8 @@ function App() {
             ))}
           </nav>
           </section>
+
+          <BeautyRadar state={radarState} hasFavorites={favorites.length > 0} />
 
           <section className="results" aria-live="polite" aria-busy={viewState === "loading"}>
           {viewState === "initial" && (

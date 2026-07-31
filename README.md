@@ -312,6 +312,31 @@ máximo y promedio consideran precios con stock. “Buen precio” requiere al m
 5 snapshots con stock distribuidos en 7 días y un precio actual inferior al
 promedio menos una desviación estándar.
 
+## Beauty Radar
+
+`GET /api/beauty-radar` alimenta la Home con información agregada del historial
+existente. No ejecuta búsquedas, crawling ni tareas programadas y nunca devuelve
+snapshots completos. Si la base todavía no tiene datos suficientes o no está
+disponible, responde las tres secciones vacías.
+
+La consulta utiliza CTEs y funciones de ventana para obtener, en una sola ida a
+PostgreSQL, el estado más reciente y el snapshot anterior de cada
+`productKey + store`. Los descensos recientes consideran únicamente cambios de
+los últimos 14 días y se ordenan por descenso absoluto. Los nuevos mínimos
+requieren un precio estrictamente menor a todos los anteriores, al menos 5
+snapshots, 3 días observados y 7 días de extensión histórica. Cada sección
+general se limita a 10 elementos.
+
+Los Favoritos siguen viviendo en `localStorage`. La Home envía como máximo 40
+`offerIds` y 40 `productKeys` ya guardados para que la misma consulta agregada
+devuelva sólo sus cambios; no se modifica su identidad ni almacenamiento.
+
+La consulta aprovecha las claves primarias de `products` y
+`price_current_state`, el índice
+`price_snapshots_product_store_time_idx` para ordenar snapshots por producto y
+tienda, y `product_offers_offer_product_store_idx` para resolver Favoritos. No
+se realiza una consulta SQL por card.
+
 ## Compartir y privacidad
 
 La acción **Compartir Girlie Girl** usa Web Share API en navegadores compatibles

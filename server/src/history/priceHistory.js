@@ -1,3 +1,5 @@
+import { normalizeBeautyRadarPayload } from "./beautyRadar.js";
+
 const MINIMUM_GOOD_PRICE_SNAPSHOTS = 5;
 const MINIMUM_HISTORY_SPAN_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -148,6 +150,20 @@ export function createPriceHistoryService({
         summary: calculatePriceSummary(snapshots),
         snapshots,
       };
+    },
+
+    async getBeautyRadar(options = {}) {
+      if (!repository?.getBeautyRadar) {
+        return {
+          recentDrops: [],
+          newHistoricalLows: [],
+          favoriteChanges: [],
+        };
+      }
+      return normalizeBeautyRadarPayload(
+        await repository.getBeautyRadar(options),
+        options.limit,
+      );
     },
   };
 }
