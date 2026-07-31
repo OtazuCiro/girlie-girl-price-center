@@ -18,6 +18,58 @@ function group(productKey, offerId) {
 }
 
 describe("refreshFavorites", () => {
+  it("finds the current Farmaplus offer for the legacy Revlon favorite", async () => {
+    const storedFavorite = {
+      productKey: "legacy-revlon-key",
+      brand: "Revlon",
+      name: "Revlon Colorstay Skin Awaken 5 In 1 Concealer Corrector 015 Light 8 ml",
+      searchQuery: "Revlon Colorstay Skin Awaken Concealer 015 Light 8 ml",
+      offerIds: ["legacy-farmaplus-offer"],
+    };
+    const currentGroup = {
+      productKey: "current-revlon-key",
+      brand: "Revlon",
+      displayName:
+        "Revlon Colorstay Skin Awaken 5 In 1 Concealer Corrector 015 Light 8 ml",
+      bestPriceOfferId: "farmaplus-current",
+      lowestPrice: 10428,
+      offers: [
+        {
+          id: "farmaplus-current",
+          store: "Farmaplus",
+          currentPrice: 10428,
+          inStock: true,
+        },
+      ],
+    };
+    const fetchImpl = vi.fn(async (url) => {
+      if (url.startsWith("/api/search")) {
+        return {
+          ok: true,
+          json: async () => ({
+            groups: [currentGroup],
+            sources: [
+              { store: "Farmaplus", status: "ok" },
+              { store: "Juleriaque", status: "error" },
+            ],
+          }),
+        };
+      }
+      return { ok: false, json: async () => ({}) };
+    });
+
+    const [result] = await refreshFavorites([storedFavorite], { fetchImpl });
+
+    expect(result.group).toBe(currentGroup);
+    expect(result.group.offers[0]).toEqual(
+      expect.objectContaining({
+        store: "Farmaplus",
+        currentPrice: 10428,
+        inStock: true,
+      }),
+    );
+  });
+
   it("matches refreshed groups by stable key or known offer membership", async () => {
     const fetchImpl = vi.fn()
       .mockResolvedValueOnce({

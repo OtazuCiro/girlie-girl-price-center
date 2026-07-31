@@ -1,25 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 
-import BeautyRadar from "./components/BeautyRadar.jsx";
-import ComparisonCard from "./components/ComparisonCard.jsx";
-import ProductDetail from "./components/ProductDetail.jsx";
-import {
-  favoriteFromGroup,
-  favoritesStorage,
-} from "./favorites/favoritesStorage.js";
+import BottomNavigation from "./components/BottomNavigation.jsx";
+import { favoriteFromGroup, favoritesStorage } from "./favorites/favoritesStorage.js";
 import { refreshFavorites } from "./favorites/refreshFavorites.js";
+import FavoritesPage from "./pages/FavoritesPage.jsx";
+import HomePage from "./pages/HomePage.jsx";
+import RadarPage from "./pages/RadarPage.jsx";
+import SearchPage from "./pages/SearchPage.jsx";
+import {
+  mergeFavoriteUpdates,
+  resolveFavoriteGroup,
+} from "./products/currentProduct.js";
 import { shareGirlieGirl } from "./utils/shareGirlieGirl.js";
-
-const CATEGORIES = ["Maquillaje", "Pelo", "Skincare"];
-
-function SearchIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="11" cy="11" r="6.5" />
-      <path d="m16 16 4 4" />
-    </svg>
-  );
-}
 
 function ShareIcon() {
   return (
@@ -34,39 +26,33 @@ function ShareIcon() {
 
 function App() {
   const [backendStatus, setBackendStatus] = useState("checking");
+  const [activeTab, setActiveTab] = useState("home");
   const [query, setQuery] = useState("");
   const [searchedQuery, setSearchedQuery] = useState("");
   const [groups, setGroups] = useState([]);
   const [sources, setSources] = useState([]);
   const [viewState, setViewState] = useState("initial");
-  const [activeView, setActiveView] = useState("search");
   const [favorites, setFavorites] = useState(() => favoritesStorage.getAll());
   const [favoriteUpdates, setFavoriteUpdates] = useState({});
   const [shareFeedback, setShareFeedback] = useState("");
   const [selectedGroup, setSelectedGroup] = useState(null);
-  const [radarState, setRadarState] = useState({
-    status: "loading",
-    data: null,
-  });
+  const [radarState, setRadarState] = useState({ status: "loading", data: null });
   const searchRun = useRef(0);
+  const favoriteRefreshRun = useRef(0);
   const shareFeedbackTimeout = useRef(null);
 
   useEffect(() => {
     const controller = new AbortController();
-
-    async function checkBackend() {
-      try {
-        const response = await fetch("/api/health", { signal: controller.signal });
+    fetch("/api/health", { signal: controller.signal })
+      .then(async (response) => {
         const data = await response.json();
         setBackendStatus(
           response.ok && data.status === "ok" ? "connected" : "unavailable",
         );
-      } catch (error) {
+      })
+      .catch((error) => {
         if (error.name !== "AbortError") setBackendStatus("unavailable");
-      }
-    }
-
-    checkBackend();
+      });
     return () => controller.abort();
   }, []);
 
@@ -76,18 +62,13 @@ function App() {
     const offerIds = [
       ...new Set(favorites.flatMap((favorite) => favorite.offerIds ?? [])),
     ].slice(0, 40);
-    const productKeys = favorites
-      .map((favorite) => favorite.productKey)
-      .slice(0, 40);
+    const productKeys = favorites.map((favorite) => favorite.productKey).slice(0, 40);
     if (offerIds.length) parameters.set("favoriteOfferIds", offerIds.join(","));
     if (productKeys.length) {
       parameters.set("favoriteProductKeys", productKeys.join(","));
     }
     const queryString = parameters.toString();
-    setRadarState((current) => ({
-      status: "loading",
-      data: current.data,
-    }));
+    setRadarState((current) => ({ status: "loading", data: current.data }));
 
     fetch(`/api/beauty-radar${queryString ? `?${queryString}` : ""}`, {
       signal: controller.signal,
@@ -116,71 +97,80 @@ function App() {
           });
         }
       });
-
     return () => controller.abort();
   }, [favorites]);
 
-  useEffect(
-    () => () => {
-      if (shareFeedbackTimeout.current) {
-        clearTimeout(shareFeedbackTimeout.current);
-      }
-    },
-    [],
-  );
-
   useEffect(() => {
-    if (activeView !== "favorites" || !favorites.length) return undefined;
-
+    if (activeTab !== "favorites" || !favorites.length) return undefined;
     const controller = new AbortController();
+    const currentRun = ++favoriteRefreshRun.current;
     const favoritesToRefresh = favorites;
-    setFavoriteUpdates({});
-
     refreshFavorites(favoritesToRefresh, { signal: controller.signal })
       .then((updates) => {
-        if (controller.signal.aborted) return;
-        setFavoriteUpdates(
-          Object.fromEntries(
-            updates.map(({ productKey, group }) => [productKey, group]),
-          ),
-        );
+        if (
+          !controller.signal.aborted &&
+          currentRun === favoriteRefreshRun.current
+        ) {
+          setFavoriteUpdates((current) =>
+            mergeFavoriteUpdates(current, updates),
+          );
+        }
       })
       .catch((error) => {
-        if (error?.name !== "AbortError") {
-          setFavoriteUpdates(
-            Object.fromEntries(
-              favoritesToRefresh.map((favorite) => [favorite.productKey, null]),
+        if (
+          error?.name !== "AbortError" &&
+          currentRun === favoriteRefreshRun.current
+        ) {
+          setFavoriteUpdates((current) =>
+            mergeFavoriteUpdates(
+              current,
+              favoritesToRefresh.map((favorite) => ({
+                productKey: favorite.productKey,
+                group: null,
+              })),
             ),
           );
         }
       });
-
     return () => controller.abort();
-  }, [activeView]);
+  }, [activeTab]);
+
+  useEffect(
+    () => () => {
+      if (shareFeedbackTimeout.current) clearTimeout(shareFeedbackTimeout.current);
+    },
+    [],
+  );
 
   async function runSearch(searchTerm) {
     const cleanQuery = searchTerm.trim();
     if (!cleanQuery) return;
-
     const currentRun = ++searchRun.current;
     setQuery(cleanQuery);
     setSearchedQuery(cleanQuery);
-    setActiveView("search");
+    setSelectedGroup(null);
+    setActiveTab("search");
     setViewState("loading");
-
     try {
       const response = await fetch(`/api/search?q=${encodeURIComponent(cleanQuery)}`);
       if (!response.ok) throw new Error(`Search failed with HTTP ${response.status}`);
-
       const data = await response.json();
       if (!Array.isArray(data.results) || !Array.isArray(data.groups)) {
         throw new Error("Invalid search response");
       }
-
       if (currentRun !== searchRun.current) return;
       setGroups(data.groups);
       setSources(Array.isArray(data.sources) ? data.sources : []);
       setViewState(data.groups.length ? "results" : "empty");
+      const favoriteMatches = favorites.flatMap((favorite) => {
+        const group = resolveFavoriteGroup(data.groups, favorite);
+        return group ? [{ productKey: favorite.productKey, group }] : [];
+      });
+      if (favoriteMatches.length) {
+        setFavoriteUpdates((current) =>
+          mergeFavoriteUpdates(current, favoriteMatches),
+        );
+      }
     } catch {
       if (currentRun === searchRun.current) setViewState("error");
     }
@@ -195,34 +185,51 @@ function App() {
     const isStored = favorites.some(
       (favorite) => favorite.productKey === storedProductKey,
     );
+    if (isStored) {
+      setFavorites(favoritesStorage.remove(storedProductKey));
+      setFavoriteUpdates((current) => {
+        const next = { ...current };
+        delete next[storedProductKey];
+        return next;
+      });
+      return;
+    }
 
-    setFavorites(
-      isStored
-        ? favoritesStorage.remove(storedProductKey)
-        : favoritesStorage.add(favoriteFromGroup(group)),
+    setFavorites(favoritesStorage.add(favoriteFromGroup(group)));
+    setFavoriteUpdates((current) =>
+      mergeFavoriteUpdates(current, [
+        { productKey: storedProductKey, group },
+      ]),
     );
   }
 
-  function showSearch() {
-    setSelectedGroup(null);
-    setActiveView("search");
+  function navigate(tab) {
+    setActiveTab(tab);
+    if (tab !== "search") setSelectedGroup(null);
   }
 
   function showDetail(group) {
+    const favoriteMatches = favorites.flatMap((favorite) =>
+      resolveFavoriteGroup([group], favorite)
+        ? [{ productKey: favorite.productKey, group }]
+        : [],
+    );
+    if (favoriteMatches.length) {
+      setFavoriteUpdates((current) =>
+        mergeFavoriteUpdates(current, favoriteMatches),
+      );
+    }
     setSelectedGroup(group);
-    setActiveView("detail");
+    setActiveTab("search");
   }
 
   async function handleShare() {
     const result = await shareGirlieGirl();
     if (result === "shared" || result === "cancelled") return;
-
     setShareFeedback(
       result === "copied" ? "Link copiado 💗" : "No pudimos compartir ahora",
     );
-    if (shareFeedbackTimeout.current) {
-      clearTimeout(shareFeedbackTimeout.current);
-    }
+    if (shareFeedbackTimeout.current) clearTimeout(shareFeedbackTimeout.current);
     shareFeedbackTimeout.current = setTimeout(() => setShareFeedback(""), 2500);
   }
 
@@ -242,7 +249,7 @@ function App() {
           aria-label="Girlie Girl Price Central, inicio"
           onClick={(event) => {
             event.preventDefault();
-            showSearch();
+            navigate("home");
           }}
         >
           <img src="/favicon-32x32.png" alt="" width="32" height="32" />
@@ -261,15 +268,6 @@ function App() {
           >
             <ShareIcon />
           </button>
-          <button
-            className={`favorites-link ${activeView === "favorites" ? "favorites-link--active" : ""}`}
-            type="button"
-            onClick={() => setActiveView("favorites")}
-          >
-            <span aria-hidden="true">♡</span>
-            Favoritos
-            {favorites.length > 0 && <small>{favorites.length}</small>}
-          </button>
           <span
             className={`connection connection--${backendStatus}`}
             title={statusLabel}
@@ -283,175 +281,46 @@ function App() {
         </div>
       </header>
 
-      <main>
-        {activeView === "search" && (
-          <>
-          <section className="hero" aria-labelledby="hero-title">
-          <p className="eyebrow">Belleza a tu precio</p>
-          <h1 id="hero-title">
-            Encontrá eso que te encanta, <em>al mejor precio.</em>
-          </h1>
-          <p className="tagline">
-            Que complementes tu preciosura con los mejores precios.
-          </p>
-
-          <form className="search" role="search" onSubmit={handleSubmit}>
-            <label className="sr-only" htmlFor="product-search">
-              Buscar productos
-            </label>
-            <input
-              id="product-search"
-              type="search"
-              placeholder="¿Qué estamos buscando hoy?"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-            <button type="submit" aria-label="Buscar">
-              <SearchIcon />
-            </button>
-          </form>
-
-          <nav className="categories" aria-label="Categorías">
-            {CATEGORIES.map((category) => (
-              <button key={category} type="button" onClick={() => runSearch(category)}>
-                {category}
-              </button>
-            ))}
-          </nav>
-          </section>
-
-          <BeautyRadar state={radarState} hasFavorites={favorites.length > 0} />
-
-          <section className="results" aria-live="polite" aria-busy={viewState === "loading"}>
-          {viewState === "initial" && (
-            <div className="welcome-state">
-              <span aria-hidden="true">⌁</span>
-              <p>Buscá un producto o explorá una categoría para empezar.</p>
-            </div>
-          )}
-
-          {viewState === "loading" && (
-            <div className="loading-state" role="status">
-              <span className="loader" aria-hidden="true" />
-              <p>Buscando precios lindos…</p>
-            </div>
-          )}
-
-          {viewState === "results" && (
-            <>
-              <div className="results-heading">
-                <div>
-                  <p className="eyebrow">Resultados</p>
-                  <h2>Para “{searchedQuery}”</h2>
-                  <span>{groups.length} productos encontrados</span>
-                </div>
-                <label>
-                  <span>Ordenar</span>
-                  <select aria-label="Ordenar resultados" defaultValue="lowest">
-                    <option value="lowest">Menor precio</option>
-                  </select>
-                </label>
-              </div>
-              {sources.some((source) => source.status === "error") && (
-                <p className="partial-results" role="status">
-                  Mostramos resultados parciales: alguna tienda no respondió.
-                </p>
-              )}
-              <div className="product-grid">
-                {groups.map((group) => (
-                  <ComparisonCard
-                    key={group.id}
-                    group={group}
-                    isFavorite={favorites.some(
-                      (favorite) => favorite.productKey === group.productKey,
-                    )}
-                    onToggleFavorite={() => toggleFavorite(group)}
-                    onViewDetails={() => showDetail(group)}
-                  />
-                ))}
-              </div>
-            </>
-          )}
-
-          {viewState === "empty" && (
-            <div className="message-state">
-              <span aria-hidden="true">🎀</span>
-              <h2>No encontramos nada por acá</h2>
-              <p>Probá con otro producto, marca o categoría.</p>
-            </div>
-          )}
-
-          {viewState === "error" && (
-            <div className="message-state" role="alert">
-              <h2>Algo no salió como esperábamos</h2>
-              <p>Intentá nuevamente en unos minutos.</p>
-            </div>
-          )}
-          </section>
-          </>
+      <main className="app-main">
+        {activeTab === "home" && (
+          <HomePage
+            query={query}
+            onQueryChange={setQuery}
+            onSubmit={handleSubmit}
+            onCategory={runSearch}
+            onOpenRadar={() => navigate("radar")}
+            radarState={radarState}
+            recentFavorites={favorites.slice(0, 2)}
+            onOpenFavorites={() => navigate("favorites")}
+          />
         )}
-
-        {activeView === "favorites" && (
-          <section className="favorites-view" aria-labelledby="favorites-title">
-            <div className="favorites-heading">
-              <p className="eyebrow">Guardados</p>
-              <h1 id="favorites-title">Mis favoritos</h1>
-            </div>
-
-            {!favorites.length ? (
-              <div className="message-state">
-                <h2>Todavía no guardaste ningún producto.</h2>
-                <button className="secondary-action" type="button" onClick={showSearch}>
-                  Buscar productos
-                </button>
-              </div>
-            ) : (
-              <div className="product-grid">
-                {favorites.map((favorite) => {
-                  const hasUpdate = Object.hasOwn(favoriteUpdates, favorite.productKey);
-                  const updatedGroup = favoriteUpdates[favorite.productKey];
-                  const fallbackGroup = {
-                    id: favorite.productKey,
-                    productKey: favorite.productKey,
-                    brand: favorite.brand,
-                    name: favorite.name,
-                    imageUrl: favorite.imageUrl,
-                    offers: [],
-                    bestPriceOfferId: null,
-                    lowestPrice: null,
-                    savings: null,
-                    inStock: true,
-                  };
-
-                  return (
-                    <ComparisonCard
-                      key={favorite.productKey}
-                      group={updatedGroup ?? fallbackGroup}
-                      isFavorite
-                      onToggleFavorite={() =>
-                        toggleFavorite(updatedGroup ?? fallbackGroup, favorite.productKey)
-                      }
-                      availabilityMessage={
-                        updatedGroup
-                          ? undefined
-                          : hasUpdate
-                            ? "Sin ofertas disponibles en este momento"
-                            : "Actualizando ofertas…"
-                      }
-                      historySummary={updatedGroup?.historySummary}
-                      onViewDetails={
-                        updatedGroup ? () => showDetail(updatedGroup) : undefined
-                      }
-                    />
-                  );
-                })}
-              </div>
-            )}
-          </section>
+        {activeTab === "search" && (
+          <SearchPage
+            query={query}
+            onQueryChange={setQuery}
+            onSubmit={handleSubmit}
+            searchedQuery={searchedQuery}
+            groups={groups}
+            sources={sources}
+            viewState={viewState}
+            favorites={favorites}
+            selectedGroup={selectedGroup}
+            onToggleFavorite={toggleFavorite}
+            onViewDetails={showDetail}
+            onBackFromDetail={() => setSelectedGroup(null)}
+          />
         )}
-
-        {activeView === "detail" && selectedGroup && (
-          <ProductDetail group={selectedGroup} onBack={showSearch} />
+        {activeTab === "radar" && (
+          <RadarPage radarState={radarState} hasFavorites={favorites.length > 0} />
+        )}
+        {activeTab === "favorites" && (
+          <FavoritesPage
+            favorites={favorites}
+            favoriteUpdates={favoriteUpdates}
+            onToggleFavorite={toggleFavorite}
+            onViewDetails={showDetail}
+            onSearch={() => navigate("search")}
+          />
         )}
       </main>
 
@@ -459,6 +328,11 @@ function App() {
         <p>For Cami, now for the girlies 💗</p>
         <span>Girlie Girl Price Central</span>
       </footer>
+      <BottomNavigation
+        activeTab={activeTab}
+        favoriteCount={favorites.length}
+        onNavigate={navigate}
+      />
     </div>
   );
 }

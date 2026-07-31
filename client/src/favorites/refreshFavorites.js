@@ -1,9 +1,8 @@
-function matchesFavorite(group, favorite) {
-  return (
-    group.productKey === favorite.productKey ||
-    group.offers.some((offer) => favorite.offerIds.includes(offer.id))
-  );
-}
+import {
+  buildProductSearchQuery,
+  resolveFavoriteGroup,
+  selectPrimaryOffer,
+} from "../products/currentProduct.js";
 
 export async function refreshFavorites(
   favorites,
@@ -20,23 +19,16 @@ export async function refreshFavorites(
 
       try {
         const response = await fetchImpl(
-          `/api/search?q=${encodeURIComponent(favorite.searchQuery)}`,
+          `/api/search?q=${encodeURIComponent(buildProductSearchQuery(favorite))}`,
           { signal },
         );
         if (!response.ok) throw new Error(`Search failed with HTTP ${response.status}`);
         const data = await response.json();
-        const group = Array.isArray(data.groups)
-          ? data.groups.find((candidate) => matchesFavorite(candidate, favorite))
-          : null;
+        const group = resolveFavoriteGroup(data.groups, favorite);
         let refreshedGroup = group;
 
         if (group) {
-          const offer =
-            group.offers.find(
-              (candidate) => candidate.id === group.bestPriceOfferId,
-            ) ??
-            group.offers.find((candidate) => candidate.inStock) ??
-            group.offers[0];
+          const offer = selectPrimaryOffer(group);
 
           if (offer?.store) {
             try {

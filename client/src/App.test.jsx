@@ -67,7 +67,12 @@ describe("Girlie Girl Price Central", () => {
     expect(
       screen.getByRole("button", { name: "Compartir Girlie Girl" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "✨ Beauty Radar" })).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Navegación principal" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Inicio" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("button", { name: "Ver Radar" })).toBeInTheDocument();
   });
 
   it("renders Beauty Radar sections from the aggregated endpoint", async () => {
@@ -106,7 +111,9 @@ describe("Girlie Girl Price Central", () => {
       throw new Error(`Unexpected URL ${url}`);
     });
 
+    const user = userEvent.setup();
     render(<App />);
+    await user.click(screen.getByRole("button", { name: "Radar" }));
 
     expect(await screen.findByText("Máscara que bajó")).toBeInTheDocument();
     expect(screen.getByText("Sérum en mínimo")).toBeInTheDocument();
@@ -150,7 +157,9 @@ describe("Girlie Girl Price Central", () => {
       throw new Error(`Unexpected URL ${url}`);
     });
 
+    const user = userEvent.setup();
     render(<App />);
+    await user.click(screen.getByRole("button", { name: "Radar" }));
 
     expect(await screen.findByText("Favorito con cambio")).toBeInTheDocument();
     expect(global.fetch).toHaveBeenCalledWith(
@@ -171,7 +180,9 @@ describe("Girlie Girl Price Central", () => {
       throw new Error("Unavailable");
     });
 
+    const user = userEvent.setup();
     render(<App />);
+    await user.click(screen.getByRole("button", { name: "Radar" }));
 
     expect(await screen.findByText("No hubo cambios recientes.")).toBeInTheDocument();
     expect(
@@ -569,5 +580,207 @@ describe("Girlie Girl Price Central", () => {
       await screen.findByText("Sin ofertas disponibles en este momento"),
     ).toBeInTheDocument();
     expect(favoritesStorage.getAll()).toHaveLength(2);
+  });
+
+  it("navigates between the four accessible tabs and marks the active tab", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    const navigation = screen.getByRole("navigation", {
+      name: "Navegación principal",
+    });
+    expect(within(navigation).getAllByRole("button")).toHaveLength(4);
+    expect(within(navigation).getByRole("button", { name: "Inicio" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+
+    await user.click(within(navigation).getByRole("button", { name: "Radar" }));
+    expect(screen.getByRole("heading", { name: "✨ Beauty Radar" })).toBeInTheDocument();
+    expect(within(navigation).getByRole("button", { name: "Radar" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+
+    await user.click(within(navigation).getByRole("button", { name: "Favoritos" }));
+    expect(screen.getByRole("heading", { name: "Mis favoritos" })).toBeInTheDocument();
+  });
+
+  it("preserves the current search when visiting Radar and Favoritos", async () => {
+    mockSearchApi();
+    const user = userEvent.setup();
+    render(<App />);
+    await searchFor("sky high");
+
+    expect(await screen.findByText("Para “sky high”")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Radar" }));
+    await user.click(screen.getByRole("button", { name: "Favoritos" }));
+    await user.click(screen.getByRole("button", { name: "Ir a Buscar" }));
+
+    expect(screen.getByRole("searchbox")).toHaveValue("sky high");
+    expect(screen.getByText("Para “sky high”")).toBeInTheDocument();
+  });
+
+  it("returns to Inicio when the logo is activated", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Radar" }));
+    await user.click(
+      screen.getByRole("link", { name: "Girlie Girl Price Central, inicio" }),
+    );
+
+    expect(screen.getByRole("button", { name: "Inicio" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(
+      screen.getByRole("heading", {
+        name: "Encontrá eso que te encanta, al mejor precio.",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows a refreshed Farmaplus offer instead of an unavailable favorite", async () => {
+    const currentGroup = {
+      id: "revlon-current",
+      productKey: "revlon-current-key",
+      brand: "Revlon",
+      name: "Colorstay Skin Awaken 5 In 1 Concealer Corrector 015 Light 8 ml",
+      displayName:
+        "Revlon Colorstay Skin Awaken 5 In 1 Concealer Corrector 015 Light 8 ml",
+      imageUrl: "",
+      offers: [
+        {
+          id: "farmaplus-current",
+          store: "Farmaplus",
+          currentPrice: 10428,
+          productUrl: "https://example.com/revlon",
+          inStock: true,
+        },
+      ],
+      bestPriceOfferId: "farmaplus-current",
+      lowestPrice: 10428,
+      savings: null,
+      inStock: true,
+    };
+    favoritesStorage.add({
+      productKey: "revlon-legacy-key",
+      brand: "Revlon",
+      name: "Revlon Colorstay Skin Awaken 5 In 1 Concealer Corrector 015 Light 8 ml",
+      imageUrl: "",
+      searchQuery: "Revlon Colorstay Skin Awaken Concealer 015 Light 8 ml",
+      offerIds: ["farmaplus-legacy"],
+    });
+    global.fetch.mockImplementation(async (url) => {
+      if (url === "/api/health") {
+        return { ok: true, json: async () => ({ status: "ok" }) };
+      }
+      if (url.startsWith("/api/beauty-radar")) {
+        return {
+          ok: true,
+          json: async () => ({
+            recentDrops: [],
+            newHistoricalLows: [],
+            favoriteChanges: [],
+          }),
+        };
+      }
+      if (url.startsWith("/api/history")) {
+        return { ok: false, json: async () => ({}) };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          groups: [currentGroup],
+          results: currentGroup.offers,
+          sources: [
+            { store: "Farmaplus", status: "ok" },
+            { store: "Juleriaque", status: "error" },
+          ],
+        }),
+      };
+    });
+
+    render(<App />);
+    await userEvent.click(screen.getByRole("button", { name: "Favoritos" }));
+
+    expect(await screen.findByText("Farmaplus")).toBeInTheDocument();
+    expect(screen.getByText("$ 10.428")).toBeInTheDocument();
+    expect(screen.queryByText("Sin ofertas disponibles en este momento")).not.toBeInTheDocument();
+  });
+
+  it("keeps an offer found by detail when returning to Favoritos", async () => {
+    const currentGroup = {
+      id: "revlon-current",
+      productKey: "revlon-current-key",
+      brand: "Revlon",
+      name: "Colorstay Skin Awaken 5 In 1 Concealer Corrector 015 Light 8 ml",
+      displayName:
+        "Revlon Colorstay Skin Awaken 5 In 1 Concealer Corrector 015 Light 8 ml",
+      imageUrl: "",
+      offers: [
+        {
+          id: "farmaplus-current",
+          store: "Farmaplus",
+          currentPrice: 10428,
+          productUrl: "https://example.com/revlon",
+          inStock: true,
+        },
+      ],
+      bestPriceOfferId: "farmaplus-current",
+      lowestPrice: 10428,
+      savings: null,
+      inStock: true,
+    };
+    favoritesStorage.add({
+      productKey: "revlon-legacy-key",
+      brand: "Revlon",
+      name: currentGroup.displayName,
+      imageUrl: "",
+      searchQuery: currentGroup.displayName,
+      offerIds: ["farmaplus-legacy"],
+    });
+    global.fetch.mockImplementation(async (url) => {
+      if (url === "/api/health") {
+        return { ok: true, json: async () => ({ status: "ok" }) };
+      }
+      if (url.startsWith("/api/beauty-radar")) {
+        return {
+          ok: true,
+          json: async () => ({
+            recentDrops: [],
+            newHistoricalLows: [],
+            favoriteChanges: [],
+          }),
+        };
+      }
+      if (url.startsWith("/api/history")) {
+        return { ok: false, json: async () => ({}) };
+      }
+      if (url === "/api/search?q=revlon") {
+        return {
+          ok: true,
+          json: async () => ({
+            groups: [currentGroup],
+            results: currentGroup.offers,
+            sources: [{ store: "Farmaplus", status: "ok" }],
+          }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({ groups: [], results: [], sources: [] }),
+      };
+    });
+
+    render(<App />);
+    await searchFor("revlon");
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Ver detalle e historial" }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Favoritos" }));
+
+    expect(screen.getByText("Farmaplus")).toBeInTheDocument();
+    expect(screen.queryByText("Sin ofertas disponibles en este momento")).not.toBeInTheDocument();
   });
 });

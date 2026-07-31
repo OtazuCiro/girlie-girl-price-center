@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { selectPrimaryOffer } from "../products/currentProduct.js";
 import PriceHistorySummary from "./PriceHistorySummary.jsx";
 
 function ProductDetail({ group, onBack }) {
@@ -7,10 +8,7 @@ function ProductDetail({ group, onBack }) {
     status: "loading",
     history: null,
   });
-  const offer =
-    group.offers.find((candidate) => candidate.id === group.bestPriceOfferId) ??
-    group.offers.find((candidate) => candidate.inStock) ??
-    group.offers[0];
+  const offer = selectPrimaryOffer(group);
 
   useEffect(() => {
     if (!offer) {
